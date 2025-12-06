@@ -1,0 +1,145 @@
+/* Onboarding.css */
+
+/* Full-screen container */
+.onboard-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+  padding: 30px 20px;
+  box-sizing: border-box;
+  background-color: #dff5e1; /* Change if needed */
+  font-family: 'Arial', sans-serif;
+  position: relative;
+  text-align: center;
+}
+
+/* Top navigation: arrow + skip */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.arrow {
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #2c7a3f;
+}
+
+.skip-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #2c7a3f;
+  cursor: pointer;
+}
+
+
+/* Image area */
+.image-area {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 150px;
+  margin-bottom: 150px; /* Add more bottom margin */
+}
+
+.image-area img {
+  max-width: 350px !important;
+  width: 100% !important;
+  height: auto;
+}
+
+/* Text area */
+.text-area {
+  margin-top: 20px;
+}
+
+.text-area h2 {
+  font-size: 30px;
+  font-weight: 700;
+  margin-bottom: px;
+  color: #2c7a3f;
+}
+
+.text-area p {
+  font-size: 25px;
+  color: #2c7a3f;
+  margin: 0 auto;
+  line-height: 2.5;
+  margin-bottom: 35px;
+}
+
+/* Next button */
+.next-btn {
+  width: 90%;
+  align-self: center;
+  padding: 14px 0;
+  font-size: 25px;
+  border: none;
+  border-radius: 14px;
+  color: white;
+  cursor: pointer;
+  background: linear-gradient(to right, #2f9e44, #4ccf64);
+  margin-top: 10px;
+  margin-bottom: 45px;
+}
+
+
+
+/* Progress indicator row */
+.progress-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 25px;
+  margin-bottom: 45px;
+}
+
+.progress {
+  width: 80px;
+  height: 6px;
+  background-color: #E5E7EB;
+  border-radius: 3px;
+  transition: all 0.3s;
+}
+
+.progress.active {
+  background-color: #2f9e44;
+  flex: 1.5; /* Active bar is longer */
+}
+.centered-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 80%;
+  max-width: 600px;
+  margin: 20px auto;
+  margin-bottom: 10px; 
+}
+
+.bottom-btn {
+  width: 80%;
+  max-width: 900px;
+  margin: 20px auto 40px auto;
+  padding: 14px 0;
+  font-size: 18px;
+  font-weight: 600;
+  border-radius: 12px;
+  background-color: #16a34a;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: -100px;
+}
+
+.bottom-btn:hover {
+  background-color: #15803d;
+}
