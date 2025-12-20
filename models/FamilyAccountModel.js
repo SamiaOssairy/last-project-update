@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const validator = require("validator");
+const crypto = require("crypto");
 
 const familyAccountSchema = new mongoose.Schema(
   {
@@ -24,6 +25,12 @@ const familyAccountSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    active: {
+      type: Boolean,
+      default: true,
+    },
+    passwordResetToken: String,
+    passwordResetExpires: Date,
   },
   {
     toJSON: { virtuals: true },
@@ -42,6 +49,20 @@ familyAccountSchema.methods.correctPassword = async function (
   candidatePassword
 ) {
   return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Generate password reset token
+familyAccountSchema.methods.createPasswordResetToken = function () {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  
+  this.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 60 minutes
+  
+  return resetToken;
 };
 
 //create the model , then export it so we can use it in other files

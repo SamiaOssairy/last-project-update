@@ -7,6 +7,8 @@ const jwt = require("jsonwebtoken");
 const familyAccountModel = require("../models/FamilyAccountModel");
 const memberModel = require("../models/MemberModel");
 const memberTypeModel = require("../models/MemberTypeModel");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 //========================================================================================
 
@@ -27,18 +29,18 @@ exports.signUp = catchAsync(async (req, res, next) => {
     return next(new AppError("Please provide all required fields: mail, password, Title, username, birth_date", 400));
   }
 
-  // Step 1: Ensure "Parent" member type exists
-  let parentType = await memberTypeModel.findOne({ type: "Parent" });
-  if (!parentType) {
-    parentType = await memberTypeModel.create({ type: "Parent" });
-  }
-
-  // Step 2: Create family account
+  // Step 1: Create family account first
   const newAccount = await familyAccountModel.create({
     mail,
     password,
     Title,
     isActivated: true,
+  });
+
+  // Step 2: Create "Parent" member type for this family
+  const parentType = await memberTypeModel.create({ 
+    type: "Parent",
+    family_id: newAccount._id
   });
 
   // Step 3: Create parent member
@@ -93,12 +95,17 @@ exports.login = catchAsync(async (req, res, next) => {
   // Step 3: Get the family account with password to verify
   const familyAccount = await familyAccountModel.findById(member.family_id._id).select('+password');
 
+  // Check if the family account is deactivated
+  if (!familyAccount.active) {
+    return next(new AppError("This account has been deactivated. Please contact support to reactivate.", 403));
+  }
+
   if (!familyAccount || !(await familyAccount.correctPassword(password))) {
     return next(new AppError("Incorrect email or password", 401));
   }
 
   // Step 4: Generate token and return user info
-  const token = signToken({ id: familyAccount._id });
+  const token = signToken({ id: familyAccount._id, member_id: member._id });
 
   res.status(200).json({
     message: "success",
@@ -131,9 +138,15 @@ exports.protect = catchAsync(async (req, res, next) => {
   if (!familyAccount) {
     return next(new AppError("Family account no longer exists", 404));
   }
+
+  // Check if the account is deactivated
+  if (!familyAccount.active) {
+    return next(new AppError("This account has been deactivated. Please contact support to reactivate.", 403));
+  }
   
-  // Attach family account to request for later use
+  // Attach family account and member_id to request for later use
   req.familyAccount = familyAccount;
+  req.memberId = decode.member_id;
   
   next();
 });
@@ -142,8 +155,8 @@ exports.protect = catchAsync(async (req, res, next) => {
 
 exports.restrictTo = (...memberTypes) => {
   return catchAsync(async (req, res, next) => {
-    // Find the member who is making the request
-    const member = await memberModel.findOne({ family_id: req.familyAccount._id })
+    // Find the specific member who is making the request
+    const member = await memberModel.findById(req.memberId)
       .populate('member_type_id');
     
     if (!member) {
@@ -162,3 +175,115 @@ exports.restrictTo = (...memberTypes) => {
     next();
   });
 };
+//========================================================================================
+// Forgot Password - generates and sends reset token
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+  const { mail } = req.body;
+  
+  if (!mail) {
+    return next(new AppError("Please provide your email address", 400));
+  }
+
+  // Step 1: Find family account by email
+  const familyAccount = await familyAccountModel.findOne({ mail });
+  
+  if (!familyAccount) {
+    return next(new AppError("No account found with that email address", 404));
+  }
+
+  // Step 2: Generate reset token
+  const resetToken = familyAccount.createPasswordResetToken();
+  await familyAccount.save({ validateBeforeSave: false });
+
+  // Step 3: Create reset URL
+  const resetURL = `${req.protocol}://${req.get('host')}/api/auth/resetPassword/${resetToken}`;
+
+  // Step 4: Send email with reset link
+  try {
+    // Configure email transporter (using Gmail as example)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USERNAME,
+      to: mail,
+      subject: 'Password Reset Request (Valid for 60 minutes)',
+      text: `Forgot your password? Click this link to reset it: ${resetURL}\n\nIf you didn't request this, please ignore this email.`,
+      html: `
+        <h2>Password Reset Request</h2>
+        <p>You requested a password reset. Click the link below to reset your password:</p>
+        <a href="${resetURL}">Reset Password</a>
+        <p>This link is valid for 60 minutes.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({
+      message: "success",
+      data: {
+        message: "Password reset link sent to your email",
+      },
+    });
+  } catch (error) {
+    // If email fails, reset the token fields
+    familyAccount.passwordResetToken = undefined;
+    familyAccount.passwordResetExpires = undefined;
+    await familyAccount.save({ validateBeforeSave: false });
+
+    return next(
+      new AppError("There was an error sending the email. Please try again later.", 500)
+    );
+  }
+});
+
+//========================================================================================
+// Reset Password - uses token to change password
+exports.resetPassword = catchAsync(async (req, res, next) => {
+  const { token } = req.params;
+  const { password, passwordConfirm } = req.body;
+
+  if (!password || !passwordConfirm) {
+    return next(new AppError("Please provide password and password confirmation", 400));
+  }
+
+  if (password !== passwordConfirm) {
+    return next(new AppError("Passwords do not match", 400));
+  }
+
+  // Step 1: Hash the token from URL to compare with database
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  // Step 2: Find family account by token and check if not expired
+  const familyAccount = await familyAccountModel.findOne({
+    passwordResetToken: hashedToken,
+    passwordResetExpires: { $gt: Date.now() },
+  }).select('+password');
+
+  if (!familyAccount) {
+    return next(new AppError("Token is invalid or has expired", 400));
+  }
+
+  // Step 3: Update password
+  familyAccount.password = password;
+  familyAccount.passwordResetToken = undefined;
+  familyAccount.passwordResetExpires = undefined;
+  await familyAccount.save();
+
+  // Step 4: Generate new JWT token and log user in
+  const jwtToken = signToken({ id: familyAccount._id });
+
+  res.status(200).json({
+    message: "success",
+    data: {
+      message: "Password reset successful",
+    },
+    token: jwtToken,
+  });
+});

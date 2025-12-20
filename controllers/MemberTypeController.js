@@ -4,7 +4,14 @@ const memberType = require("../models/MemberTypeModel");
 //========================================================================================
 
 exports.createMemberType = catchAsync(async (req, res, next) => {
-  const newMemberType = await memberType.create(req.body);
+  const { type } = req.body;
+  
+  // Create member type for the logged-in user's family
+  const newMemberType = await memberType.create({
+    type,
+    family_id: req.familyAccount._id
+  });
+  
   res.status(201).json({
     status: "success",
     data: { newMemberType },
@@ -12,7 +19,9 @@ exports.createMemberType = catchAsync(async (req, res, next) => {
 });
 //========================================================================================
 exports.getAllMemberTypes = catchAsync(async (req, res, next) => {
-  const memberTypes = await memberType.find();
+  // Get member types for the logged-in user's family only
+  const memberTypes = await memberType.find({ family_id: req.familyAccount._id });
+  
   res.status(200).json({
     status: "success",
     results: memberTypes.length,

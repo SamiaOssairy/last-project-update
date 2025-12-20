@@ -22,10 +22,10 @@ exports.createMember = catchAsync(async (req, res, next) => {
     return next(new AppError("A member with this email already exists in your family", 400));
   }
   
-  // Check if member type exists, if not create it
-  let memberTypeDoc = await memberType.findOne({ type: member_type });
+  // Check if member type exists for this family, if not create it
+  let memberTypeDoc = await memberType.findOne({ type: member_type, family_id });
   if (!memberTypeDoc) {
-    memberTypeDoc = await memberType.create({ type: member_type });
+    memberTypeDoc = await memberType.create({ type: member_type, family_id });
   }
   
   // Create the new member
@@ -65,7 +65,7 @@ exports.getAllMembers = catchAsync(async (req, res, next) => {
 
 
 
-
+// get member info 
 
 
 

@@ -1,0 +1,154 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+class ApiService {
+  static const String baseUrl = 'http://localhost:8000/api';
+  
+  // Get stored token
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('token');
+  }
+  
+  // Save token
+  Future<void> _saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', token);
+  }
+  
+  // Get headers with token
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await _getToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+  }
+  
+  // Auth APIs
+  Future<Map<String, dynamic>> signup(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/signup'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      if (responseData['token'] != null) {
+        await _saveToken(responseData['token']);
+      }
+      return responseData;
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Signup failed');
+    }
+  }
+  
+  Future<Map<String, dynamic>> login(Map<String, dynamic> data) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(data),
+    );
+    
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      if (responseData['token'] != null) {
+        await _saveToken(responseData['token']);
+      }
+      return responseData;
+    } else {
+      throw Exception(jsonDecode(response.body)['message'] ?? 'Login failed');
+    }
+  }
+  
+  // Member APIs
+  Future<List<dynamic>> getAllMembers() async {
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/members'),
+      headers: headers,
+    );
+    
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      return responseData['data']['members'] ?? [];
+    } else {
+      throw Exception('Failed to load members');
+    }
+  }
+  
+  Future<Map<String, dynamic>> createMember(Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    print('🔵 Creating member with headers: $headers');
+    print('🔵 Member data: $data');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/members'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+    
+    print('🔵 Response status: ${response.statusCode}');
+    print('🔵 Response body: ${response.body}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to create member');
+    }
+  }
+  
+  // Member Type APIs
+  Future<List<dynamic>> getAllMemberTypes() async {
+    final headers = await _getHeaders();
+    print('🔵 Fetching member types with headers: $headers');
+    
+    final response = await http.get(
+      Uri.parse('$baseUrl/memberTypes'),
+      headers: headers,
+    );
+    
+    print('🔵 Member types response status: ${response.statusCode}');
+    print('🔵 Member types response body: ${response.body}');
+    
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      return responseData['data']['memberTypes'] ?? [];
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to load member types');
+    }
+  }
+  
+  // Logout
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('token');
+    await prefs.remove('user');
+    await prefs.remove('username');
+    await prefs.remove('familyTitle');
+  }
+
+  // Deactivate Account
+  Future<Map<String, dynamic>> deactivateAccount(String mail, String password) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/familyAccounts/deactivate'),
+      headers: headers,
+      body: jsonEncode({
+        'mail': mail,
+        'password': password,
+      }),
+    );
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to deactivate account');
+    }
+  }
+}

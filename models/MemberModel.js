@@ -5,7 +5,6 @@ const memberSchema = new mongoose.Schema({
   username: {
     type: String,
     required: [true, 'Please provide your username'],
-    unique: true,
   },
   mail:{
     type: String,
@@ -28,6 +27,9 @@ const memberSchema = new mongoose.Schema({
     required: [true, 'Please provide your birth date']
   }
 });
+
+// Create compound index: username must be unique per family
+memberSchema.index({ username: 1, family_id: 1 }, { unique: true });
 
 const Member = mongoose.model('Member', memberSchema);
 
