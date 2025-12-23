@@ -580,60 +580,303 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildMemberCard(Member member) {
-    return SizedBox(
-      width: 70,
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFD4E7D7),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    member.getAvatarEmoji(),
-                    style: const TextStyle(fontSize: 32),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 2,
-                right: 2,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF4CAF50),
+    return GestureDetector(
+      onTap: () => _showMemberOptionsDialog(member),
+      child: SizedBox(
+        width: 70,
+        child: Column(
+          children: [
+            Stack(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFD4E7D7),
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: Center(
+                    child: Text(
+                      member.getAvatarEmoji(),
+                      style: const TextStyle(fontSize: 32),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            member.username,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            member.memberType?.type ?? 'Member',
-            style: const TextStyle(
-              fontSize: 10,
-              color: Color(0xFF4CAF50),
-              fontWeight: FontWeight.w600,
+                Positioned(
+                  bottom: 2,
+                  right: 2,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4CAF50),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              member.username,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              member.memberType?.type ?? 'Member',
+              style: const TextStyle(
+                fontSize: 10,
+                color: Color(0xFF4CAF50),
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  void _showMemberOptionsDialog(Member member) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Container(
+            width: 350,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Member Avatar
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFD4E7D7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      member.getAvatarEmoji(),
+                      style: const TextStyle(fontSize: 40),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Member Name
+                Text(
+                  member.username,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                
+                // Member Type Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    member.memberType?.type ?? 'Member',
+                    style: const TextStyle(
+                      color: Color(0xFF4CAF50),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                
+                // Member Email
+                Text(
+                  member.mail,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF666666),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                
+                // Action Buttons
+                Row(
+                  children: [
+                    // Close Button
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: Color(0xFF4CAF50)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Text(
+                          'Close',
+                          style: TextStyle(color: Color(0xFF4CAF50)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    
+                    // Remove Button
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          _showDeleteMemberConfirmation(member);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_remove, size: 18, color: Colors.white),
+                            SizedBox(width: 6),
+                            Text(
+                              'Remove',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteMemberConfirmation(Member member) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        bool isDeleting = false;
+        
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+                  SizedBox(width: 8),
+                  Text('Remove Member'),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Are you sure you want to remove "${member.username}" from your family?',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.red, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'This action cannot be undone. All member data including points and wishlist will be deleted.',
+                            style: TextStyle(fontSize: 12, color: Colors.red),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isDeleting ? null : () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isDeleting
+                      ? null
+                      : () async {
+                          setDialogState(() {
+                            isDeleting = true;
+                          });
+                          
+                          try {
+                            await _apiService.deleteMember(member.id);
+                            
+                            if (mounted) {
+                              Navigator.pop(dialogContext);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('${member.username} has been removed from your family'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                              // Refresh family members list
+                              _fetchFamilyMembers();
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              Navigator.pop(dialogContext);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to remove member: ${e.toString().replaceAll('Exception: ', '')}'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  child: isDeleting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Remove',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 

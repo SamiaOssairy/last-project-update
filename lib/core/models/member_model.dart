@@ -1,12 +1,14 @@
 class Member {
   final String id;
   final String username;
+  final String mail;
   final MemberType? memberType;
   final bool isOnline;
 
   Member({
     required this.id,
     required this.username,
+    required this.mail,
     this.memberType,
     this.isOnline = false,
   });
@@ -15,6 +17,7 @@ class Member {
     return Member(
       id: json['_id'] ?? '',
       username: json['username'] ?? '',
+      mail: json['mail'] ?? '',
       memberType: json['member_type_id'] != null
           ? MemberType.fromJson(json['member_type_id'])
           : null,

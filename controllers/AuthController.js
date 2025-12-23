@@ -7,6 +7,8 @@ const jwt = require("jsonwebtoken");
 const familyAccountModel = require("../models/FamilyAccountModel");
 const memberModel = require("../models/MemberModel");
 const memberTypeModel = require("../models/MemberTypeModel");
+const PointWallet = require("../models/point_walletModel");
+const Wishlist = require("../models/wishlistModel");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
 
@@ -43,30 +45,33 @@ exports.signUp = catchAsync(async (req, res, next) => {
     family_id: newAccount._id
   });
 
-  // Step 3: Create parent member
+  // Step 3: Create parent member (Parent already has password via family account, so isFirstLogin = false)
   const newMember = await memberModel.create({
     username,
     mail,
     family_id: newAccount._id,
     member_type_id: parentType._id,
     birth_date,
+    isFirstLogin: false, // Parent uses family password, no need to set new password
   });
 
   // Step 4: Auto-create Point Wallet and Wishlist for parent
-  const PointWallet = require("../models/point_walletModel");
-  const Wishlist = require("../models/wishlistModel");
-  
-  await PointWallet.create({
-    member_mail: mail,
-    total_points: 0
-  });
-  
-  await Wishlist.create({
-    member_mail: mail,
-    title: `${username}'s Wishlist`
-  });
+  try {
+    await PointWallet.create({
+      member_mail: mail,
+      total_points: 0
+    });
+    
+    await Wishlist.create({
+      member_mail: mail,
+      title: `${username}'s Wishlist`
+    });
+  } catch (err) {
+    // If wallet/wishlist creation fails, log but don't fail the signup
+    console.log("Note: Wallet/Wishlist may already exist or creation failed:", err.message);
+  }
 
-  const token = signToken({ id: newAccount._id });
+  const token = signToken({ id: newAccount._id, member_id: newMember._id });
   
   res.status(201).json({
     message: "success",
@@ -92,8 +97,9 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("Please provide email and password", 400));
   }
 
-  // Step 1: Find the member with this mail
+  // Step 1: Find the member with this mail (include password field)
   const member = await memberModel.findOne({ mail })
+    .select('+password')
     .populate('family_id')
     .populate('member_type_id');
 
@@ -106,7 +112,7 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("This family account is not activated", 403));
   }
 
-  // Step 3: Get the family account with password to verify
+  // Step 3: Get the family account with password
   const familyAccount = await familyAccountModel.findById(member.family_id._id).select('+password');
 
   // Check if the family account is deactivated
@@ -114,11 +120,28 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError("This account has been deactivated. Please contact support to reactivate.", 403));
   }
 
-  if (!familyAccount || !(await familyAccount.correctPassword(password))) {
+  // Step 4: Check password - either member's own password or family password
+  let passwordCorrect = false;
+  
+  // Parents ALWAYS use family password and never need to change it
+  const isParent = member.member_type_id.type === 'Parent';
+  
+  if (member.password && !isParent) {
+    // Non-parent member has their own password - use it
+    passwordCorrect = await member.correctPassword(password);
+  } else {
+    // Parent OR member without own password - use family account password
+    passwordCorrect = await familyAccount.correctPassword(password);
+  }
+
+  if (!passwordCorrect) {
     return next(new AppError("Incorrect email or password", 401));
   }
 
-  // Step 4: Generate token and return user info
+  // Determine if first login (only for non-parents who haven't set password)
+  const isFirstLogin = !isParent && member.isFirstLogin && !member.password;
+
+  // Step 5: Generate token and return user info
   const token = signToken({ id: familyAccount._id, member_id: member._id });
 
   res.status(200).json({
@@ -127,12 +150,61 @@ exports.login = catchAsync(async (req, res, next) => {
       username: member.username,
       familyTitle: familyAccount.Title,
       memberType: member.member_type_id.type,
+      isFirstLogin: isFirstLogin, // Only true for non-parents on first login
     },
     token,
   });
 });
 
 //========================================================================================
+
+// Set password for first-time users or change existing password
+exports.setPassword = catchAsync(async (req, res, next) => {
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+  
+  if (!newPassword || !confirmPassword) {
+    return next(new AppError("Please provide new password and confirmation", 400));
+  }
+  
+  if (newPassword !== confirmPassword) {
+    return next(new AppError("Passwords do not match", 400));
+  }
+  
+  if (newPassword.length < 6) {
+    return next(new AppError("Password must be at least 6 characters", 400));
+  }
+  
+  // Get the member with password
+  const member = await memberModel.findById(req.memberId).select('+password');
+  
+  if (!member) {
+    return next(new AppError("Member not found", 404));
+  }
+  
+  // If member already has a password, verify current password
+  if (member.password && !member.isFirstLogin) {
+    if (!currentPassword) {
+      return next(new AppError("Please provide your current password", 400));
+    }
+    
+    const isCorrect = await member.correctPassword(currentPassword);
+    if (!isCorrect) {
+      return next(new AppError("Current password is incorrect", 401));
+    }
+  }
+  
+  // Set new password and mark as not first login
+  member.password = newPassword;
+  member.isFirstLogin = false;
+  await member.save();
+  
+  res.status(200).json({
+    message: "success",
+    data: {
+      message: "Password updated successfully"
+    }
+  });
+});
 
 exports.protect = catchAsync(async (req, res, next) => {
   if (

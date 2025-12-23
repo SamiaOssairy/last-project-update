@@ -57,10 +57,56 @@ class ApiService {
       if (responseData['token'] != null) {
         await _saveToken(responseData['token']);
       }
+      // Save isFirstLogin status
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isFirstLogin', responseData['data']['isFirstLogin'] ?? false);
       return responseData;
     } else {
       throw Exception(jsonDecode(response.body)['message'] ?? 'Login failed');
     }
+  }
+  
+  // Set/Change Password API
+  Future<Map<String, dynamic>> setPassword({
+    String? currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    final headers = await _getHeaders();
+    print('🔵 Setting password...');
+    
+    final body = {
+      'newPassword': newPassword,
+      'confirmPassword': confirmPassword,
+    };
+    
+    if (currentPassword != null && currentPassword.isNotEmpty) {
+      body['currentPassword'] = currentPassword;
+    }
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/setPassword'),
+      headers: headers,
+      body: jsonEncode(body),
+    );
+    
+    print('🔵 Set password response: ${response.statusCode} - ${response.body}');
+    
+    if (response.statusCode == 200) {
+      // Clear isFirstLogin flag
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isFirstLogin', false);
+      return jsonDecode(response.body);
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to set password');
+    }
+  }
+  
+  // Check if first login
+  Future<bool> isFirstLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('isFirstLogin') ?? false;
   }
   
   // Member APIs
@@ -80,6 +126,9 @@ class ApiService {
   }
   
   Future<Map<String, dynamic>> createMember(Map<String, dynamic> data) async {
+    final token = await _getToken();
+    print('🔵 Token for createMember: ${token != null ? "EXISTS" : "NULL - THIS IS THE PROBLEM!"}');
+    
     final headers = await _getHeaders();
     print('🔵 Creating member with headers: $headers');
     print('🔵 Member data: $data');
@@ -103,6 +152,9 @@ class ApiService {
   
   // Member Type APIs
   Future<List<dynamic>> getAllMemberTypes() async {
+    final token = await _getToken();
+    print('🔵 Token retrieved: ${token != null ? "EXISTS (${token.substring(0, 20)}...)" : "NULL"}');
+    
     final headers = await _getHeaders();
     print('🔵 Fetching member types with headers: $headers');
     
@@ -120,6 +172,47 @@ class ApiService {
     } else {
       final errorData = jsonDecode(response.body);
       throw Exception(errorData['message'] ?? 'Failed to load member types');
+    }
+  }
+  
+  // Create Member Type API
+  Future<Map<String, dynamic>> createMemberType(String typeName) async {
+    final headers = await _getHeaders();
+    print('🔵 Creating member type: $typeName');
+    
+    final response = await http.post(
+      Uri.parse('$baseUrl/memberTypes'),
+      headers: headers,
+      body: jsonEncode({'type': typeName}),
+    );
+    
+    print('🔵 Create member type response: ${response.statusCode} - ${response.body}');
+    
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to create member type');
+    }
+  }
+  
+  // Delete Member API
+  Future<Map<String, dynamic>> deleteMember(String memberId) async {
+    final headers = await _getHeaders();
+    print('🔵 Deleting member: $memberId');
+    
+    final response = await http.delete(
+      Uri.parse('$baseUrl/members/$memberId'),
+      headers: headers,
+    );
+    
+    print('🔵 Delete member response: ${response.statusCode} - ${response.body}');
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception(errorData['message'] ?? 'Failed to delete member');
     }
   }
   

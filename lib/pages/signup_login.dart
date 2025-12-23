@@ -64,25 +64,27 @@ class _LoginPageState extends State<LoginPage> {
       print('💾 Saved username: ${response['data']['username']}');
       print('💾 Saved familyTitle: ${response['data']['familyTitle']}');
       
+      // Check if this is first login (needs password setup)
+      final isFirstLogin = response['data']['isFirstLogin'] ?? false;
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Welcome ${response['data']['username']}!')),
         );
         
-        // Navigate to home page
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => HomePage(
-              userName: response['data']['username'],
-              familyTitle: response['data']['familyTitle'],
-              onLogout: () {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginPage()),
-                );
-              },
-            ),
-          ),
-        );
+        if (isFirstLogin) {
+          // Show password setup dialog
+          _showSetPasswordDialog(
+            username: response['data']['username'],
+            familyTitle: response['data']['familyTitle'],
+          );
+        } else {
+          // Navigate to home page
+          _navigateToHome(
+            response['data']['username'],
+            response['data']['familyTitle'],
+          );
+        }
       }
     } catch (e) {
       print('❌ Login error: $e');
@@ -101,6 +103,245 @@ class _LoginPageState extends State<LoginPage> {
         });
       }
     }
+  }
+
+  void _navigateToHome(String? username, String? familyTitle) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => HomePage(
+          userName: username,
+          familyTitle: familyTitle,
+          onLogout: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (context) => const LoginPage()),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showSetPasswordDialog({String? username, String? familyTitle}) {
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool isLoading = false;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User must set password
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Container(
+                width: 400,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Lock Icon
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.lock_outline,
+                        size: 40,
+                        color: Color(0xFF4CAF50),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    // Title
+                    const Text(
+                      'Set Your Password',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Description
+                    Text(
+                      'Welcome ${username ?? ''}! Please set your personal password to secure your account.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // New Password Field
+                    TextField(
+                      controller: newPasswordController,
+                      obscureText: obscureNew,
+                      decoration: InputDecoration(
+                        labelText: 'New Password',
+                        hintText: 'Enter new password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
+                          onPressed: () {
+                            setDialogState(() {
+                              obscureNew = !obscureNew;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Confirm Password Field
+                    TextField(
+                      controller: confirmPasswordController,
+                      obscureText: obscureConfirm,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm Password',
+                        hintText: 'Confirm new password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
+                          onPressed: () {
+                            setDialogState(() {
+                              obscureConfirm = !obscureConfirm;
+                            });
+                          },
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Password hint
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 14, color: Colors.grey[500]),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Password must be at least 6 characters',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    // Set Password Button
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: isLoading
+                            ? null
+                            : () async {
+                                // Validation
+                                if (newPasswordController.text.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Please enter a password')),
+                                  );
+                                  return;
+                                }
+                                
+                                if (newPasswordController.text.length < 6) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Password must be at least 6 characters')),
+                                  );
+                                  return;
+                                }
+                                
+                                if (newPasswordController.text != confirmPasswordController.text) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Passwords do not match')),
+                                  );
+                                  return;
+                                }
+                                
+                                setDialogState(() {
+                                  isLoading = true;
+                                });
+                                
+                                try {
+                                  await _apiService.setPassword(
+                                    newPassword: newPasswordController.text,
+                                    confirmPassword: confirmPasswordController.text,
+                                  );
+                                  
+                                  if (mounted) {
+                                    Navigator.pop(dialogContext);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Password set successfully!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    
+                                    // Navigate to home
+                                    _navigateToHome(username, familyTitle);
+                                  }
+                                } catch (e) {
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                } finally {
+                                  if (mounted) {
+                                    setDialogState(() {
+                                      isLoading = false;
+                                    });
+                                  }
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Set Password',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
