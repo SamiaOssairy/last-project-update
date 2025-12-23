@@ -52,6 +52,20 @@ exports.signUp = catchAsync(async (req, res, next) => {
     birth_date,
   });
 
+  // Step 4: Auto-create Point Wallet and Wishlist for parent
+  const PointWallet = require("../models/point_walletModel");
+  const Wishlist = require("../models/wishlistModel");
+  
+  await PointWallet.create({
+    member_mail: mail,
+    total_points: 0
+  });
+  
+  await Wishlist.create({
+    member_mail: mail,
+    title: `${username}'s Wishlist`
+  });
+
   const token = signToken({ id: newAccount._id });
   
   res.status(201).json({

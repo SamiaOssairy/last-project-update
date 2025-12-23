@@ -10,6 +10,13 @@ const familyAccountRouter = require('./routes/familyAccountRoutes');
 const memberRouter = require('./routes/memberRoutes');
 const memberTypeRouter = require('./routes/memberTypeRoutes');
 const authRouter = require('./routes/authRoutes');
+const taskRouter = require('./routes/taskRoutes');
+const taskCategoryRouter = require('./routes/taskCategoryRoutes');
+const pointWalletRouter = require('./routes/pointWalletRoutes');
+const pointHistoryRouter = require('./routes/pointHistoryRoutes');
+const wishlistRouter = require('./routes/wishlistRoutes');
+const wishlistCategoryRouter = require('./routes/wishlistCategoryRoutes');
+const redeemRouter = require('./routes/redeemRoutes');
 
 
 const path = require('path');
@@ -35,6 +42,13 @@ app.use('/api/familyAccounts', familyAccountRouter);
 app.use('/api/members', memberRouter);
 app.use('/api/memberTypes', memberTypeRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/tasks', taskRouter);
+app.use('/api/task-categories', taskCategoryRouter);
+app.use('/api/point-wallet', pointWalletRouter);
+app.use('/api/point-history', pointHistoryRouter);
+app.use('/api/wishlist', wishlistRouter);
+app.use('/api/wishlist-categories', wishlistCategoryRouter);
+app.use('/api/redeem', redeemRouter);
 
 // Global error handler
 app.use((err, req, res, next) => {

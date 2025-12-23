@@ -37,6 +37,20 @@ exports.createMember = catchAsync(async (req, res, next) => {
     birth_date,
   });
   
+  // Auto-create Point Wallet and Wishlist for new member
+  const PointWallet = require("../models/point_walletModel");
+  const Wishlist = require("../models/wishlistModel");
+  
+  await PointWallet.create({
+    member_mail: mail,
+    total_points: 0
+  });
+  
+  await Wishlist.create({
+    member_mail: mail,
+    title: `${username}'s Wishlist`
+  });
+  
   // Populate the response
   await newMember.populate('member_type_id');
   
