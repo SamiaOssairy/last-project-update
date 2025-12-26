@@ -230,9 +230,18 @@ exports.protect = catchAsync(async (req, res, next) => {
     return next(new AppError("This account has been deactivated. Please contact support to reactivate.", 403));
   }
   
-  // Attach family account and member_id to request for later use
+  // Get the member
+  const member = await memberModel.findById(decode.member_id)
+    .populate('member_type_id');
+  
+  if (!member) {
+    return next(new AppError("Member no longer exists", 404));
+  }
+  
+  // Attach family account, member_id, and member to request for later use
   req.familyAccount = familyAccount;
   req.memberId = decode.member_id;
+  req.member = member;
   
   next();
 });

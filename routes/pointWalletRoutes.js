@@ -4,12 +4,16 @@ const {
   getMyWallet,
   getMemberWallet,
   manualAdjustment,
-  getPointsRanking
+  getPointsRanking,
+  initializeWallets
 } = require('../controllers/PointWalletController');
 
 const pointWalletRouter = express.Router();
 
 pointWalletRouter.use(protect);
+
+// Initialize wallets for all family members
+pointWalletRouter.post('/initialize', initializeWallets);
 
 // My wallet
 pointWalletRouter.get('/my-wallet', getMyWallet);

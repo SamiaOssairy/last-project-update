@@ -8,7 +8,6 @@ const MemberType = require("../models/MemberTypeModel");
 // Get my point history
 exports.getMyPointHistory = catchAsync(async (req, res, next) => {
   const history = await PointDetails.find({ member_mail: req.member.mail })
-    .populate('granted_by', 'username mail')
     .populate('task_id', 'title')
     .sort({ createdAt: -1 });
   
@@ -35,7 +34,6 @@ exports.getMemberPointHistory = catchAsync(async (req, res, next) => {
   }
   
   const history = await PointDetails.find({ member_mail: memberMail })
-    .populate('granted_by', 'username mail')
     .populate('task_id', 'title')
     .populate('redeem_id')
     .sort({ createdAt: -1 });
@@ -55,8 +53,6 @@ exports.getAllPointHistory = catchAsync(async (req, res, next) => {
   const memberMails = members.map(m => m.mail);
   
   const history = await PointDetails.find({ member_mail: { $in: memberMails } })
-    .populate('member_mail', 'username mail')
-    .populate('granted_by', 'username mail')
     .populate('task_id', 'title')
     .populate('redeem_id')
     .sort({ createdAt: -1 });

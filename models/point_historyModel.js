@@ -8,8 +8,7 @@ const pointDetailsSchema = new mongoose.Schema({
   },
   member_mail: {
     type: String,
-    required: [true, 'Please provide the member email'],
-    ref: 'Member'
+    required: [true, 'Please provide the member email']
   },
   points_amount: {
     type: Number,
@@ -32,8 +31,7 @@ const pointDetailsSchema = new mongoose.Schema({
   },
   granted_by: {
     type: String,
-    required: [true, 'Please provide who granted the points'],
-    ref: 'Member'
+    required: [true, 'Please provide who granted the points']
   },
   description: {
     type: String,

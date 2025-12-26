@@ -50,8 +50,7 @@ exports.createTask = catchAsync(async (req, res, next) => {
 // Get all tasks for the family
 exports.getAllTasks = catchAsync(async (req, res, next) => {
   const tasks = await Task.find({ family_id: req.familyAccount._id })
-    .populate('category_id')
-    .populate('created_by', 'username mail');
+    .populate('category_id');
   
   res.status(200).json({
     status: "success",
@@ -199,8 +198,7 @@ exports.approveTaskAssignment = catchAsync(async (req, res, next) => {
   }
   
   const taskDetail = await TaskDetails.findById(taskDetailId)
-    .populate('task_id')
-    .populate('member_mail', 'username');
+    .populate('task_id');
   
   if (!taskDetail) {
     return next(new AppError("Task assignment not found", 404));
@@ -245,9 +243,7 @@ exports.getPendingAssignments = catchAsync(async (req, res, next) => {
       path: 'task_id',
       match: { family_id: req.familyAccount._id },
       populate: { path: 'category_id' }
-    })
-    .populate('member_mail', 'username mail')
-    .populate('assigned_by', 'username mail');
+    });
   
   // Filter out null task_id (tasks from other families)
   const filteredTaskDetails = taskDetails.filter(td => td.task_id !== null);
@@ -262,15 +258,14 @@ exports.getPendingAssignments = catchAsync(async (req, res, next) => {
 //========================================================================================
 // Get member's assigned tasks
 exports.getMyTasks = catchAsync(async (req, res, next) => {
+  // Get ALL tasks assigned to this member (regardless of approval status)
   const taskDetails = await TaskDetails.find({ 
-    member_mail: req.member.mail,
-    assignment_approved: true
+    member_mail: req.member.mail
   })
     .populate({
       path: 'task_id',
       populate: { path: 'category_id' }
     })
-    .populate('assigned_by', 'username mail')
     .sort({ deadline: 1 });
   
   res.status(200).json({
@@ -289,11 +284,9 @@ exports.getAllAssignedTasks = catchAsync(async (req, res, next) => {
       match: { family_id: req.familyAccount._id },
       populate: { path: 'category_id' }
     })
-    .populate('member_mail', 'username mail')
-    .populate('assigned_by', 'username mail')
-    .sort({ deadline: 1 });
+    .sort({ createdAt: -1 });
   
-  // Filter out null task_id
+  // Filter out null task_id (tasks from other families)
   const filteredTaskDetails = taskDetails.filter(td => td.task_id !== null);
   
   res.status(200).json({
@@ -307,7 +300,7 @@ exports.getAllAssignedTasks = catchAsync(async (req, res, next) => {
 // Mark task as completed (by assignee)
 exports.completeTask = catchAsync(async (req, res, next) => {
   const { taskDetailId } = req.params;
-  const { notes } = req.body;
+  const notes = req.body?.notes || '';
   
   const taskDetail = await TaskDetails.findById(taskDetailId)
     .populate('task_id');
@@ -350,7 +343,6 @@ exports.getTasksWaitingApproval = catchAsync(async (req, res, next) => {
       match: { family_id: req.familyAccount._id },
       populate: { path: 'category_id' }
     })
-    .populate('member_mail', 'username mail')
     .sort({ completed_at: -1 });
   
   const filteredTaskDetails = taskDetails.filter(td => td.task_id !== null);
@@ -376,8 +368,7 @@ exports.approveTaskCompletion = catchAsync(async (req, res, next) => {
   const PointDetails = require("../models/point_historyModel");
   
   const taskDetail = await TaskDetails.findById(taskDetailId)
-    .populate('task_id')
-    .populate('member_mail', 'username mail');
+    .populate('task_id');
   
   if (!taskDetail) {
     return next(new AppError("Task assignment not found", 404));
@@ -458,8 +449,7 @@ exports.manualPenalty = catchAsync(async (req, res, next) => {
   const PointDetails = require("../models/point_historyModel");
   
   const taskDetail = await TaskDetails.findById(taskDetailId)
-    .populate('task_id')
-    .populate('member_mail', 'username mail');
+    .populate('task_id');
   
   if (!taskDetail) {
     return next(new AppError("Task assignment not found", 404));

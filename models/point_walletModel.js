@@ -4,8 +4,7 @@ const pointWalletSchema = new mongoose.Schema({
   member_mail: {
     type: String,
     required: [true, 'Please provide the member email'],
-    unique: true,
-    ref: 'Member'
+    unique: true
   },
   total_points: {
     type: Number,
@@ -18,15 +17,6 @@ const pointWalletSchema = new mongoose.Schema({
   }
 }, {
   timestamps: true
-});
-
-// Index for faster lookups
-pointWalletSchema.index({ member_mail: 1 });
-
-// Update last_update timestamp before saving
-pointWalletSchema.pre('save', function(next) {
-  this.last_update = Date.now();
-  next();
 });
 
 const PointWallet = mongoose.model('PointWallet', pointWalletSchema);

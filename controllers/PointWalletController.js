@@ -5,14 +5,49 @@ const PointDetails = require("../models/point_historyModel");
 const Member = require("../models/MemberModel");
 
 //========================================================================================
+// Initialize wallets for all family members (creates if not exists)
+exports.initializeWallets = catchAsync(async (req, res, next) => {
+  // Get all members in family
+  const members = await Member.find({ family_id: req.familyAccount._id });
+  
+  const created = [];
+  const existing = [];
+  
+  for (const member of members) {
+    const existingWallet = await PointWallet.findOne({ member_mail: member.mail });
+    if (existingWallet) {
+      existing.push(member.mail);
+    } else {
+      await PointWallet.create({
+        member_mail: member.mail,
+        total_points: 0
+      });
+      created.push(member.mail);
+    }
+  }
+  
+  res.status(200).json({
+    status: "success",
+    message: `Wallets initialized. Created: ${created.length}, Already existed: ${existing.length}`,
+    data: { created, existing }
+  });
+});
+
+//========================================================================================
 // Get my point wallet
 exports.getMyWallet = catchAsync(async (req, res, next) => {
-  let wallet = await PointWallet.findOne({ member_mail: req.member.mail });
+  const memberMail = req.member?.mail;
+  
+  if (!memberMail) {
+    return next(new AppError("Member email not found", 400));
+  }
+  
+  let wallet = await PointWallet.findOne({ member_mail: memberMail });
   
   if (!wallet) {
     // Create wallet if doesn't exist
     wallet = await PointWallet.create({ 
-      member_mail: req.member.mail, 
+      member_mail: memberMail, 
       total_points: 0 
     });
   }
@@ -104,26 +139,52 @@ exports.manualAdjustment = catchAsync(async (req, res, next) => {
 //========================================================================================
 // Get points ranking/leaderboard
 exports.getPointsRanking = catchAsync(async (req, res, next) => {
+  if (!req.familyAccount || !req.familyAccount._id) {
+    return next(new AppError("Family account not found", 400));
+  }
+  
   // Get all members in family
   const members = await Member.find({ family_id: req.familyAccount._id })
     .populate('member_type_id', 'type')
-    .select('username mail birth_date');
+    .select('username mail');
   
-  // Get all wallets
+  if (!members || members.length === 0) {
+    return res.status(200).json({
+      status: "success",
+      data: { ranking: [] }
+    });
+  }
+  
+  // Get member emails
+  const memberEmails = members.map(m => m.mail);
+  
+  // Get all wallets for these members
   const wallets = await PointWallet.find({ 
-    member_mail: { $in: members.map(m => m.mail) } 
-  }).sort({ total_points: -1 });
+    member_mail: { $in: memberEmails } 
+  });
   
-  // Combine data
-  const ranking = wallets.map((wallet, index) => {
-    const member = members.find(m => m.mail === wallet.member_mail);
+  // Create a map of wallets by email for quick lookup
+  const walletMap = {};
+  wallets.forEach(w => {
+    walletMap[w.member_mail] = w.total_points || 0;
+  });
+  
+  // Combine data - include ALL members (0 points if no wallet)
+  const ranking = members.map(member => {
     return {
-      rank: index + 1,
-      username: member?.username,
-      mail: member?.mail,
-      member_type: member?.member_type_id?.type,
-      total_points: wallet.total_points
+      username: member.username || 'Unknown',
+      mail: member.mail,
+      member_type: member.member_type_id?.type || 'Member',
+      total_points: walletMap[member.mail] || 0
     };
+  });
+  
+  // Sort by points descending
+  ranking.sort((a, b) => b.total_points - a.total_points);
+  
+  // Add rank
+  ranking.forEach((item, index) => {
+    item.rank = index + 1;
   });
   
   res.status(200).json({

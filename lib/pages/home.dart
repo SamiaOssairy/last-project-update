@@ -204,7 +204,7 @@ class _HomePageState extends State<HomePage> {
                         ? Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Color(0xFF4CAF50), width: 2),
+                              border: Border.all(color: const Color(0xFF4CAF50), width: 2),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Row(
@@ -1043,6 +1043,35 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
+              const SizedBox(height: 15),
+              // Task Management Button
+              InkWell(
+                onTap: () => Navigator.pushNamed(context, '/task-management'),
+                child: Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2196F3), Color(0xFF1976D2)],
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.assignment, color: Colors.white, size: 24),
+                      SizedBox(width: 10),
+                      Text(
+                        'Task Management',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -1319,9 +1348,9 @@ class _HomePageState extends State<HomePage> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(Icons.home, 'Home', 0),
-              _buildNavItem(Icons.people, 'Members', 1),
-              _buildNavItem(Icons.calendar_today, 'Schedule', 2),
-              _buildNavItem(Icons.chat_bubble_outline, 'Chat', 3),
+              _buildNavItem(Icons.dashboard, 'Dashboard', 1),
+              _buildNavItem(Icons.checklist, 'Tasks', 2),
+              _buildNavItem(Icons.stars, 'Points', 3),
               _buildNavItem(Icons.settings, 'Settings', 4),
             ],
           ),
@@ -1334,18 +1363,27 @@ class _HomePageState extends State<HomePage> {
     final isActive = _activeTab == index;
     return GestureDetector(
       onTap: () {
-        if (index == 4) {
-          // Navigate to Settings page
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SettingPage(onLogout: widget.onLogout),
-            ),
-          );
-        } else {
-          setState(() {
-            _activeTab = index;
-          });
+        switch (index) {
+          case 0:
+            setState(() => _activeTab = index);
+            break;
+          case 1:
+            Navigator.pushNamed(context, '/dashboard');
+            break;
+          case 2:
+            Navigator.pushNamed(context, '/tasks');
+            break;
+          case 3:
+            Navigator.pushNamed(context, '/family-points');
+            break;
+          case 4:
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => SettingPage(onLogout: widget.onLogout),
+              ),
+            );
+            break;
         }
       },
       child: Container(
