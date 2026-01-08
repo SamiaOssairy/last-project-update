@@ -15,6 +15,7 @@ A comprehensive family management application that enables parents to assign tas
   - [Backend Setup](#backend-setup)
   - [Flutter App Setup](#flutter-app-setup)
   - [React App Setup](#react-app-setup)
+- [VS Code Tasks (Quick Commands)](#-vs-code-tasks-quick-commands)
 - [API Endpoints](#api-endpoints)
 - [Environment Variables](#environment-variables)
 - [Database Schema](#database-schema)
@@ -236,6 +237,38 @@ Make sure you have the following installed:
    ```bash
    npm start
    ```
+
+---
+
+## ⚡ VS Code Tasks (Quick Commands)
+
+This project includes pre-configured VS Code tasks to run common commands quickly without typing them manually.
+
+### How to Use
+
+**Option 1: Keyboard Shortcut**
+- Press `Ctrl + Shift + B` → Select a task from the list
+
+**Option 2: Command Palette**
+1. Press `Ctrl + Shift + P`
+2. Type "Tasks: Run Task"
+3. Select the task you want
+
+### Available Tasks
+
+| Task | Description |
+|------|-------------|
+| **Backend: Start Dev Server (nodemon)** | Runs backend with auto-reload |
+| **Backend: Start Production Server** | Runs backend normally |
+| **Backend: Install Dependencies** | `npm install` in backend |
+| **Flutter: Run App** | Runs Flutter on default device |
+| **Flutter: Run on Chrome (Web)** | Runs Flutter in browser |
+| **Flutter: Run on Windows** | Runs Flutter desktop app |
+| **Flutter: Get Dependencies** | `flutter pub get` |
+| **Flutter: Clean & Rebuild** | Cleans and reinstalls Flutter |
+| **React: Start Dev Server** | Starts React app |
+| **React: Install Dependencies** | `npm install` for React |
+| **🚀 Start All (Backend + Flutter)** | Starts both at once! |
 
 ---
 

@@ -1,0 +1,155 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Backend: Start Dev Server (nodemon)",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "group": "build",
+      "presentation": {
+        "label": "Backend Server",
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Start Production Server",
+      "type": "shell",
+      "command": "npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "group": "build",
+      "presentation": {
+        "label": "Backend (Prod)",
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: Install Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Run App",
+      "type": "shell",
+      "command": "flutter run",
+      "options": {
+        "cwd": "${workspaceFolder}/flutter_app"
+      },
+      "group": "build",
+      "presentation": {
+        "label": "Flutter App",
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Run on Chrome (Web)",
+      "type": "shell",
+      "command": "flutter run -d chrome",
+      "options": {
+        "cwd": "${workspaceFolder}/flutter_app"
+      },
+      "group": "build",
+      "presentation": {
+        "label": "Flutter Web",
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Run on Windows",
+      "type": "shell",
+      "command": "flutter run -d windows",
+      "options": {
+        "cwd": "${workspaceFolder}/flutter_app"
+      },
+      "group": "build",
+      "presentation": {
+        "label": "Flutter Windows",
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Get Dependencies",
+      "type": "shell",
+      "command": "flutter pub get",
+      "options": {
+        "cwd": "${workspaceFolder}/flutter_app"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Flutter: Clean & Rebuild",
+      "type": "shell",
+      "command": "flutter clean && flutter pub get",
+      "options": {
+        "cwd": "${workspaceFolder}/flutter_app"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "React: Start Dev Server",
+      "type": "shell",
+      "command": "npm start",
+      "options": {
+        "cwd": "${workspaceFolder}/React_frontend"
+      },
+      "group": "build",
+      "presentation": {
+        "label": "React App",
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "React: Install Dependencies",
+      "type": "shell",
+      "command": "npm install",
+      "options": {
+        "cwd": "${workspaceFolder}/React_frontend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "🚀 Start All (Backend + Flutter)",
+      "dependsOn": [
+        "Backend: Start Dev Server (nodemon)",
+        "Flutter: Run App"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
