@@ -18,8 +18,8 @@ const leftoverSchema = new mongoose.Schema({
   },
   category_id: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'LeftoverCategory',
-    required: [true, 'Please provide the category']
+    ref: 'InventoryCategory',
+    default: null
   },
   unit_id: {
     type: mongoose.Schema.Types.ObjectId,

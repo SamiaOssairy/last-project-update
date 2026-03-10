@@ -39,7 +39,7 @@ class _LeftoversScreenState extends State<LeftoversScreen> with SingleTickerProv
     try {
       final results = await Future.wait([
         _apiService.getAllLeftovers(),
-        _apiService.getAllLeftoverCategories(),
+        _apiService.getAllInventoryCategories(tree: false),
         _apiService.getAllUnits(),
       ]);
       setState(() {
@@ -470,7 +470,7 @@ class _LeftoversScreenState extends State<LeftoversScreen> with SingleTickerProv
                         ],
                       ),
                       const SizedBox(height: 12),
-                      Text('Category',
+                      Text('Category (optional)',
                           style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13)),
                       const SizedBox(height: 6),
                       Container(
@@ -479,17 +479,24 @@ class _LeftoversScreenState extends State<LeftoversScreen> with SingleTickerProv
                           border: Border.all(color: Colors.grey[300]!),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: DropdownButton<String>(
+                        child: DropdownButton<String?>(
                           value: selectedCatId,
                           isExpanded: true,
                           underline: const SizedBox(),
-                          hint: Text('Select category', style: GoogleFonts.poppins(fontSize: 13)),
-                          items: _categories.map((c) {
-                            return DropdownMenuItem<String>(
-                              value: c['_id'],
-                              child: Text(c['title'] ?? '', style: GoogleFonts.poppins(fontSize: 13)),
-                            );
-                          }).toList(),
+                          hint: Text('No category', style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey)),
+                          items: [
+                            DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('No category', style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey)),
+                            ),
+                            ..._categories.map((c) {
+                              final path = buildCategoryPath(c, _categories);
+                              return DropdownMenuItem<String?>(
+                                value: c['_id'],
+                                child: Text(path, style: GoogleFonts.poppins(fontSize: 13), overflow: TextOverflow.ellipsis),
+                              );
+                            }),
+                          ],
                           onChanged: (val) => setDialogState(() => selectedCatId = val),
                         ),
                       ),
@@ -550,8 +557,10 @@ class _LeftoversScreenState extends State<LeftoversScreen> with SingleTickerProv
                       'item_name': nameCtrl.text.trim(),
                       'quantity': double.tryParse(qtyCtrl.text) ?? 0,
                       'unit_id': selectedUnitId,
-                      'category_id': selectedCatId,
                     };
+                    if (selectedCatId != null) {
+                      body['category_id'] = selectedCatId;
+                    }
                     if (expiryDate != null) {
                       body['expiry_date'] = expiryDate!.toIso8601String();
                     }

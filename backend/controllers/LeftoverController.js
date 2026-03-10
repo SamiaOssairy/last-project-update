@@ -2,6 +2,7 @@ const AppError = require("../utils/appError");
 const { catchAsync } = require("../utils/catchAsync");
 const Leftover = require("../models/leftoverModel");
 const LeftoverCategory = require("../models/leftoverCategoryModel");
+const InventoryCategory = require("../models/inventoryCategoryModel");
 
 //========================================================================================
 // LEFTOVER CATEGORY MANAGEMENT
@@ -75,25 +76,23 @@ exports.deleteLeftoverCategory = catchAsync(async (req, res, next) => {
 exports.addLeftover = catchAsync(async (req, res, next) => {
   const { item_name, category_id, unit_id, quantity, meal_id, expiry_date } = req.body;
 
-  if (!item_name || !category_id || !unit_id || (quantity === undefined || quantity === null) || !expiry_date) {
-    return next(new AppError("Please provide item_name, category_id, unit_id, quantity, and expiry_date", 400));
+  if (!item_name || !unit_id || (quantity === undefined || quantity === null) || !expiry_date) {
+    return next(new AppError("Please provide item_name, unit_id, quantity, and expiry_date", 400));
   }
 
-  // Verify category belongs to family
-  const category = await LeftoverCategory.findOne({
-    _id: category_id,
-    family_id: req.familyAccount._id
-  });
-
-  if (!category) {
-    return next(new AppError("Category not found or doesn't belong to your family", 404));
+  // Verify category exists (optional)
+  if (category_id) {
+    const category = await InventoryCategory.findById(category_id);
+    if (!category) {
+      return next(new AppError("Category not found", 404));
+    }
   }
 
   const leftover = await Leftover.create({
     member_mail: req.member.mail,
     family_id: req.familyAccount._id,
     item_name,
-    category_id,
+    category_id: category_id || null,
     unit_id,
     quantity,
     meal_id: meal_id || null,
