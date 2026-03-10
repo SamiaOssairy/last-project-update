@@ -771,12 +771,14 @@ class ApiService {
   }
 
   // Create inventory
-  Future<Map<String, dynamic>> createInventory(String title) async {
+  Future<Map<String, dynamic>> createInventory(String title, {String? type}) async {
     final headers = await _getHeaders();
+    final body = <String, dynamic>{'title': title};
+    if (type != null) body['type'] = type;
     final response = await http.post(
       Uri.parse('$baseUrl/inventory'),
       headers: headers,
-      body: jsonEncode({'title': title}),
+      body: jsonEncode(body),
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {

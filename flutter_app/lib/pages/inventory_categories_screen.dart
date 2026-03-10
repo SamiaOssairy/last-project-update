@@ -22,8 +22,11 @@ class _InventoryCategoriesScreenState extends State<InventoryCategoriesScreen> {
   // ── Data ──
   List<dynamic> _treeCategories = []; // hierarchical (tree) from API
   List<dynamic> _flatCategories = []; // flat list (for parent dropdowns)
+  List<dynamic> _inventories = [];
+  List<dynamic> _allItems = [];
   bool _loading = true;
   String _searchQuery = '';
+  String? _selectedInventoryId; // null = show all categories
 
   // ── Expansion state ──
   final Set<String> _expandedIds = {};
@@ -44,10 +47,14 @@ class _InventoryCategoriesScreenState extends State<InventoryCategoriesScreen> {
       final results = await Future.wait([
         _apiService.getAllInventoryCategories(tree: true),
         _apiService.getAllInventoryCategories(tree: false),
+        _apiService.getAllInventories(),
+        _apiService.getAllFamilyItems(),
       ]);
       setState(() {
         _treeCategories = results[0];
         _flatCategories = results[1];
+        _inventories = results[2];
+        _allItems = results[3];
         _loading = false;
       });
     } catch (e) {
@@ -59,6 +66,36 @@ class _InventoryCategoriesScreenState extends State<InventoryCategoriesScreen> {
   // ───────────────────────────────────────────────────────────────────────────
   // SEARCH / FILTER
   // ───────────────────────────────────────────────────────────────────────────
+
+  /// Category IDs that are used by items in the selected inventory.
+  Set<String> get _usedCategoryIds {
+    final items = _selectedInventoryId == null
+        ? _allItems
+        : _allItems.where((item) {
+            final inv = item['inventory_id'];
+            if (inv is Map) return inv['_id'] == _selectedInventoryId;
+            return inv == _selectedInventoryId;
+          });
+    final ids = <String>{};
+    for (final item in items) {
+      final cat = item['item_category'];
+      if (cat is Map && cat['_id'] != null) {
+        ids.add(cat['_id']);
+      } else if (cat is String) {
+        ids.add(cat);
+      }
+    }
+    return ids;
+  }
+
+  /// When an inventory is selected, only show nodes whose subtree contains at
+  /// least one category that is used by items in that inventory.
+  bool _nodeHasUsedCategory(dynamic node, Set<String> usedIds) {
+    final id = node['_id']?.toString() ?? '';
+    if (usedIds.contains(id)) return true;
+    final children = node['children'] as List<dynamic>? ?? [];
+    return children.any((c) => _nodeHasUsedCategory(c, usedIds));
+  }
 
   /// Returns `true` when [node] or any descendant matches the query.
   bool _nodeMatchesSearch(dynamic node) {
@@ -376,6 +413,7 @@ class _InventoryCategoriesScreenState extends State<InventoryCategoriesScreen> {
             child: Column(
               children: [
                 _buildHeader(),
+                _buildInventorySelector(),
                 _buildSearchBar(),
                 const SizedBox(height: 8),
                 _buildStats(),
@@ -409,13 +447,29 @@ class _InventoryCategoriesScreenState extends State<InventoryCategoriesScreen> {
             icon: const Icon(Icons.arrow_back_ios, color: Appcolor.textDark),
           ),
           Expanded(
-            child: Text(
-              'Categories',
-              style: GoogleFonts.poppins(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Appcolor.textDark,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Categories',
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Appcolor.textDark,
+                  ),
+                ),
+                if (_selectedInventoryId != null)
+                  Text(
+                    _inventories
+                            .where(
+                                (i) => i['_id'] == _selectedInventoryId)
+                            .map((i) => i['title'] ?? '')
+                            .firstOrNull ??
+                        '',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: Appcolor.textLight),
+                  ),
+              ],
             ),
           ),
           // Expand / collapse all
@@ -437,6 +491,103 @@ class _InventoryCategoriesScreenState extends State<InventoryCategoriesScreen> {
             icon: const Icon(Icons.unfold_less, color: Appcolor.foodPrimary),
           ),
         ],
+      ),
+    );
+  }
+
+  // ── Inventory Selector ───────────────────────────────────────────────────
+
+  IconData _inventoryIcon(String? type) {
+    switch (type) {
+      case 'Food':
+        return Icons.restaurant_outlined;
+      case 'Electronics':
+        return Icons.devices_outlined;
+      case 'Cleaning':
+        return Icons.cleaning_services_outlined;
+      case 'Personal Care':
+        return Icons.face_outlined;
+      default:
+        return Icons.inventory_2_outlined;
+    }
+  }
+
+  Widget _buildInventorySelector() {
+    if (_inventories.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SizedBox(
+        height: 44,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: _inventories.length + 1,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              final isSel = _selectedInventoryId == null;
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _selectedInventoryId = null;
+                }),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSel ? Appcolor.foodPrimary : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color:
+                            isSel ? Appcolor.foodPrimary : Colors.grey[300]!),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.all_inbox_outlined,
+                        size: 16,
+                        color: isSel ? Colors.white : Appcolor.textMedium),
+                    const SizedBox(width: 6),
+                    Text('All Inventories',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isSel ? Colors.white : Appcolor.textDark)),
+                  ]),
+                ),
+              );
+            }
+            final inv = _inventories[index - 1];
+            final invId = inv['_id'];
+            final isSel = _selectedInventoryId == invId;
+            return GestureDetector(
+              onTap: () => setState(() {
+                _selectedInventoryId = isSel ? null : invId;
+              }),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSel ? Appcolor.foodPrimary : Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color:
+                          isSel ? Appcolor.foodPrimary : Colors.grey[300]!),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(_inventoryIcon(inv['type']),
+                      size: 16,
+                      color: isSel ? Colors.white : Appcolor.textMedium),
+                  const SizedBox(width: 6),
+                  Text(inv['title'] ?? '',
+                      style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color:
+                              isSel ? Colors.white : Appcolor.textDark)),
+                ]),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -527,8 +678,13 @@ class _InventoryCategoriesScreenState extends State<InventoryCategoriesScreen> {
       );
     }
 
-    final visibleRoots =
-        _treeCategories.where(_nodeMatchesSearch).toList();
+    final visibleRoots = _treeCategories.where((node) {
+      if (!_nodeMatchesSearch(node)) return false;
+      if (_selectedInventoryId != null) {
+        return _nodeHasUsedCategory(node, _usedCategoryIds);
+      }
+      return true;
+    }).toList();
 
     if (visibleRoots.isEmpty) {
       return Center(

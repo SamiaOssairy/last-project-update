@@ -22,6 +22,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   String _familyTitle = '';
   bool _loading = true;
   String? _selectedCategoryId;
+  String? _selectedInventoryId;
   final TextEditingController _searchCtrl = TextEditingController();
   String _sortBy = 'name';
   int _unreadAlerts = 0;
@@ -63,8 +64,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   // ── Filtering & Sorting ──────────────────────────────────────
 
+  List<dynamic> get _activeItems {
+    if (_selectedInventoryId == null) return _items;
+    return _items.where((item) {
+      final inv = item['inventory_id'];
+      if (inv is Map) return inv['_id'] == _selectedInventoryId;
+      return inv == _selectedInventoryId;
+    }).toList();
+  }
+
   List<dynamic> get _filteredItems {
-    List<dynamic> result = List.from(_items);
+    List<dynamic> result = List.from(_activeItems);
     if (_selectedCategoryId != null) {
       result = result.where((item) {
         final cat = item['item_category'];
@@ -123,8 +133,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   int _getItemCountForCategory(String catId) {
-    return _items.where((item) {
+    return _activeItems.where((item) {
       final cat = item['item_category'];
+
       if (cat is Map) return cat['_id'] == catId;
       return cat == catId;
     }).length;
@@ -361,7 +372,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       purchaseDate = _tryParseDate(existingItem['purchase_date']);
       expiryDate = _tryParseDate(existingItem['expiry_date']);
     } else {
-      if (_inventories.isNotEmpty) {
+      if (_selectedInventoryId != null) {
+        selectedInventoryId = _selectedInventoryId;
+      } else if (_inventories.isNotEmpty) {
         selectedInventoryId = _inventories.first['_id'];
       }
       selectedCategoryId = _selectedCategoryId;
@@ -999,44 +1012,82 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   void _showCreateInventoryDialog() {
     final titleCtrl = TextEditingController();
+    String selectedType = 'Food';
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('New Inventory',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
-        content: TextField(
-            controller: titleCtrl,
-            decoration: InputDecoration(
-                labelText: 'Inventory Name',
-                hintText: 'e.g., Kitchen Pantry, Fridge',
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10)))),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.isNotEmpty) {
-                try {
-                  await _apiService.createInventory(titleCtrl.text);
-                  if (mounted) Navigator.pop(ctx);
-                  _loadData();
-                  if (mounted) showSuccessSnack(context, 'Inventory created');
-                } catch (e) {
-                  if (mounted) showErrorSnack(context, '$e');
+      builder: (ctx) => StatefulBuilder(builder: (context, setDlgState) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('New Inventory',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            TextField(
+                controller: titleCtrl,
+                decoration: InputDecoration(
+                    labelText: 'Inventory Name',
+                    hintText: 'e.g., Kitchen Pantry, Fridge',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)))),
+            const SizedBox(height: 14),
+            Text('Type',
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 8),
+            Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    ['Food', 'Electronics', 'Cleaning', 'Personal Care', 'Other']
+                        .map((type) {
+              final isSel = selectedType == type;
+              return GestureDetector(
+                onTap: () => setDlgState(() => selectedType = type),
+                child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                        color:
+                            isSel ? Appcolor.foodPrimary : Colors.grey[200],
+                        borderRadius: BorderRadius.circular(20)),
+                    child: Text(type,
+                        style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color:
+                                isSel ? Colors.white : Colors.black87))),
+              );
+            }).toList()),
+          ]),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (titleCtrl.text.isNotEmpty) {
+                  try {
+                    await _apiService.createInventory(
+                        titleCtrl.text.trim(),
+                        type: selectedType);
+                    if (mounted) Navigator.pop(ctx);
+                    _loadData();
+                    if (mounted) {
+                      showSuccessSnack(context, 'Inventory created');
+                    }
+                  } catch (e) {
+                    if (mounted) showErrorSnack(context, '$e');
+                  }
                 }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Appcolor.foodPrimary),
-            child:
-                const Text('Create', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Appcolor.foodPrimary),
+              child: const Text('Create',
+                  style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      }),
     );
   }
 
@@ -1058,6 +1109,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         color: Appcolor.foodPrimary))
                 : Column(children: [
                     _buildHeader(),
+                    _buildInventorySelector(),
+                    const SizedBox(height: 8),
                     _buildSearchBar(),
                     const SizedBox(height: 8),
                     _buildCategoryFilter(),
@@ -1084,6 +1137,12 @@ class _InventoryScreenState extends State<InventoryScreen> {
   // ── Header ──────────────────────────────────────────────────
 
   Widget _buildHeader() {
+    final selectedInv = _selectedInventoryId != null
+        ? _inventories.where((i) => i['_id'] == _selectedInventoryId).toList()
+        : [];
+    final subtitle = selectedInv.isNotEmpty
+        ? (selectedInv.first['title'] ?? 'Inventory')
+        : '$_familyTitle Family';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(children: [
@@ -1099,15 +1158,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: Appcolor.textDark)),
-              Text('$_familyTitle Family',
+              Text(subtitle,
                   style: GoogleFonts.poppins(
                       fontSize: 12, color: Appcolor.textLight)),
             ])),
-        IconButton(
-            onPressed: _showCreateInventoryDialog,
-            icon: const Icon(Icons.add_box_outlined,
-                color: Appcolor.foodPrimary),
-            tooltip: 'New Inventory'),
         Stack(children: [
           IconButton(
               onPressed: () =>
@@ -1139,6 +1193,327 @@ class _InventoryScreenState extends State<InventoryScreen> {
             tooltip: 'Manage Categories'),
       ]),
     );
+  }
+
+  // ── Inventory Selector ────────────────────────────────────────
+
+  IconData _inventoryIcon(String? type) {
+    switch (type) {
+      case 'Food':
+        return Icons.restaurant_outlined;
+      case 'Electronics':
+        return Icons.devices_outlined;
+      case 'Cleaning':
+        return Icons.cleaning_services_outlined;
+      case 'Personal Care':
+        return Icons.face_outlined;
+      default:
+        return Icons.inventory_2_outlined;
+    }
+  }
+
+  int _getItemCountForInventory(String invId) {
+    return _items.where((item) {
+      final inv = item['inventory_id'];
+      if (inv is Map) return inv['_id'] == invId;
+      return inv == invId;
+    }).length;
+  }
+
+  void _showRenameInventoryDialog(dynamic inventory) {
+    final invId = inventory['_id'];
+    final ctrl = TextEditingController(text: inventory['title'] ?? '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title:
+            Text('Rename Inventory', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          decoration: InputDecoration(
+              labelText: 'Inventory Name',
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = ctrl.text.trim();
+              if (newName.isEmpty) return;
+              try {
+                await _apiService
+                    .updateInventory(invId, {'title': newName});
+                if (mounted) Navigator.pop(ctx);
+                _loadData();
+                if (mounted) showSuccessSnack(context, 'Inventory renamed');
+              } catch (e) {
+                if (mounted) showErrorSnack(context, '$e');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Appcolor.foodPrimary),
+            child:
+                const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInventoryOptions(dynamic inventory) {
+    final invId = inventory['_id'];
+    final invTitle = inventory['title'] ?? '';
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2))),
+            Text(invTitle,
+                style: GoogleFonts.poppins(
+                    fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+                '${_getItemCountForInventory(invId)} items \u2022 ${inventory['type'] ?? 'Other'}',
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: Appcolor.textLight)),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.edit_outlined,
+                  color: Appcolor.foodPrimary),
+              title: Text('Rename Inventory',
+                  style: GoogleFonts.poppins()),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showRenameInventoryDialog(inventory);
+              },
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.delete_outline, color: Colors.red),
+              title: Text('Delete Inventory',
+                  style: GoogleFonts.poppins(color: Colors.red)),
+              subtitle: Text(
+                  _getItemCountForInventory(invId) > 0
+                      ? 'Will delete all items in this inventory'
+                      : 'This inventory is empty',
+                  style:
+                      GoogleFonts.poppins(fontSize: 11, color: Colors.grey)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                final confirmed = await showConfirmDialog(context,
+                    title: 'Delete "$invTitle"?',
+                    message:
+                        'This will permanently delete this inventory and all its items.');
+                if (!confirmed) return;
+                try {
+                  await _apiService.deleteInventory(invId);
+                  if (_selectedInventoryId == invId) {
+                    _selectedInventoryId = null;
+                  }
+                  _loadData();
+                  if (mounted) {
+                    showSuccessSnack(context, '"$invTitle" deleted');
+                  }
+                } catch (e) {
+                  if (mounted) showErrorSnack(context, '$e');
+                }
+              },
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInventorySelector() {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(
+        height: 50,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: _inventories.length + 2, // All + inventories + Add button
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (context, index) {
+            // "All" chip
+            if (index == 0) {
+              final isSel = _selectedInventoryId == null;
+              return GestureDetector(
+                onTap: () =>
+                    setState(() => _selectedInventoryId = null),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: isSel
+                          ? Appcolor.foodPrimary
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: isSel
+                              ? Appcolor.foodPrimary
+                              : Colors.grey[300]!),
+                      boxShadow: isSel
+                          ? [
+                              BoxShadow(
+                                  color: Appcolor.foodPrimary
+                                      .withOpacity(0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2))
+                            ]
+                          : null),
+                  child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                    Icon(Icons.all_inbox_outlined,
+                        size: 18,
+                        color: isSel
+                            ? Colors.white
+                            : Appcolor.textMedium),
+                    const SizedBox(width: 8),
+                    Text('All',
+                        style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: isSel
+                                ? Colors.white
+                                : Appcolor.textDark)),
+                    const SizedBox(width: 6),
+                    Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                            color: isSel
+                                ? Colors.white.withOpacity(0.25)
+                                : Colors.grey[200],
+                            borderRadius:
+                                BorderRadius.circular(10)),
+                        child: Text('${_items.length}',
+                            style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: isSel
+                                    ? Colors.white
+                                    : Appcolor.textMedium))),
+                  ]),
+                ),
+              );
+            }
+
+            // Add button
+            if (index == _inventories.length + 1) {
+              return GestureDetector(
+                onTap: _showCreateInventoryDialog,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: Appcolor.foodPrimary,
+                          style: BorderStyle.solid)),
+                  child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                    const Icon(Icons.add,
+                        size: 18, color: Appcolor.foodPrimary),
+                    const SizedBox(width: 4),
+                    Text('New',
+                        style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Appcolor.foodPrimary)),
+                  ]),
+                ),
+              );
+            }
+
+            // Inventory chip
+            final inv = _inventories[index - 1];
+            final invId = inv['_id'];
+            final isSel = _selectedInventoryId == invId;
+            final icon = _inventoryIcon(inv['type']);
+            final count = _getItemCountForInventory(invId);
+            return GestureDetector(
+              onTap: () => setState(
+                  () => _selectedInventoryId = isSel ? null : invId),
+              onLongPress: () => _showInventoryOptions(inv),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                    color: isSel
+                        ? Appcolor.foodPrimary
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: isSel
+                            ? Appcolor.foodPrimary
+                            : Colors.grey[300]!),
+                    boxShadow: isSel
+                        ? [
+                            BoxShadow(
+                                color: Appcolor.foodPrimary
+                                    .withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2))
+                          ]
+                        : null),
+                child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                  Icon(icon,
+                      size: 18,
+                      color: isSel
+                          ? Colors.white
+                          : Appcolor.textMedium),
+                  const SizedBox(width: 8),
+                  Text(inv['title'] ?? '',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isSel
+                              ? Colors.white
+                              : Appcolor.textDark)),
+                  const SizedBox(width: 6),
+                  Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                          color: isSel
+                              ? Colors.white.withOpacity(0.25)
+                              : Colors.grey[200],
+                          borderRadius:
+                              BorderRadius.circular(10)),
+                      child: Text('$count',
+                          style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: isSel
+                                  ? Colors.white
+                                  : Appcolor.textMedium))),
+                ]),
+              ),
+            );
+          },
+        ),
+      ),
+    ]);
   }
 
   // ── Search bar ────────────────────────────────────────────────
@@ -1203,23 +1578,39 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   // ── Category filter chips ─────────────────────────────────────
 
+  /// Categories that actually have items in the active inventory view.
+  List<dynamic> get _activeCategories {
+    final items = _activeItems;
+    final usedCatIds = <String>{};
+    for (final item in items) {
+      final cat = item['item_category'];
+      if (cat is Map && cat['_id'] != null) {
+        usedCatIds.add(cat['_id']);
+      } else if (cat is String) {
+        usedCatIds.add(cat);
+      }
+    }
+    return _categories.where((c) => usedCatIds.contains(c['_id'])).toList();
+  }
+
   Widget _buildCategoryFilter() {
-    if (_categories.isEmpty) return const SizedBox.shrink();
+    final cats = _activeCategories;
+    if (cats.isEmpty && _activeItems.isEmpty) return const SizedBox.shrink();
     return SizedBox(
       height: 42,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        itemCount: _categories.length + 1,
+        itemCount: cats.length + 1,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
           if (index == 0) {
             final isSel = _selectedCategoryId == null;
-            return _filterChip('All', _items.length, isSel, () {
+            return _filterChip('All', _activeItems.length, isSel, () {
               setState(() => _selectedCategoryId = null);
             });
           }
-          final cat = _categories[index - 1];
+          final cat = cats[index - 1];
           final catId = cat['_id'];
           final isSel = _selectedCategoryId == catId;
           return _filterChip(
@@ -1274,8 +1665,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
   // ── Summary Row ───────────────────────────────────────────────
 
   Widget _buildSummaryRow() {
-    final total = _items.length;
-    final lowStock = _items.where((i) => isLowStock(i)).length;
+    final active = _activeItems;
+    final total = active.length;
+    final lowStock = active.where((i) => isLowStock(i)).length;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
       child: Row(children: [

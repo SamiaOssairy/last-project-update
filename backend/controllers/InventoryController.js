@@ -81,11 +81,8 @@ exports.deleteInventory = catchAsync(async (req, res, next) => {
     return next(new AppError("Inventory not found", 404));
   }
 
-  // Check if items exist
-  const itemCount = await InventoryItem.countDocuments({ inventory_id: inventoryId });
-  if (itemCount > 0) {
-    return next(new AppError(`Cannot delete inventory with ${itemCount} items. Remove all items first.`, 400));
-  }
+  // Delete all items in this inventory first
+  await InventoryItem.deleteMany({ inventory_id: inventoryId });
 
   await Inventory.findByIdAndDelete(inventoryId);
 
