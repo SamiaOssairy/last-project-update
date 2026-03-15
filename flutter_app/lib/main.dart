@@ -22,6 +22,7 @@ import 'pages/receipts_screen.dart';
 import 'pages/inventory_alerts_screen.dart';
 import 'pages/groceries_screen.dart';
 import 'pages/grocery_list_detail_screen.dart';
+import 'pages/family_map_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,6 +66,7 @@ class MyApp extends StatelessWidget {
         '/inventory-alerts': (context) => const InventoryAlertsScreen(),
         '/groceries': (context) => const GroceriesScreen(),
         '/grocery-list-detail': (context) => const GroceryListDetailScreen(),
+        '/family-map': (context) => const FamilyMapScreen(),
       },
     );
   }

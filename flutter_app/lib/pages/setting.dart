@@ -21,11 +21,14 @@ class _SettingPageState extends State<SettingPage> {
   String _familyTitle = '';
   String _userName = '';
   bool _darkMode = false;
+  bool _locationSharing = true;
+  bool _isUpdatingLocationSharing = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
+    _loadLocationSharing();
   }
 
   Future<void> _loadUserData() async {
@@ -37,6 +40,58 @@ class _SettingPageState extends State<SettingPage> {
       _userName = userName;
       _familyTitle = familyTitle;
     });
+  }
+
+  Future<void> _loadLocationSharing() async {
+    try {
+      final response = await _apiService.getMyLocation();
+      final location = response['data']?['location'];
+      if (location != null && mounted) {
+        setState(() {
+          _locationSharing = location['is_sharing_enabled'] ?? true;
+        });
+      }
+    } catch (_) {
+      // Ignore here; user can still toggle later.
+    }
+  }
+
+  Future<void> _toggleLocationSharingFromSettings(bool value) async {
+    if (_isUpdatingLocationSharing) return;
+    final previous = _locationSharing;
+    setState(() {
+      _locationSharing = value;
+      _isUpdatingLocationSharing = true;
+    });
+
+    try {
+      await _apiService.toggleLocationSharing(value);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(value
+              ? 'Location sharing enabled'
+              : 'Location sharing disabled (parents have been notified)'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _locationSharing = previous;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update location sharing: ${e.toString().replaceAll('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingLocationSharing = false;
+        });
+      }
+    }
   }
 
   Future<void> _handleLogout() async {
@@ -54,7 +109,7 @@ class _SettingPageState extends State<SettingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      bottomNavigationBar: const AppBottomNav(selectedIndex: 3),
+      bottomNavigationBar: const AppBottomNav(selectedIndex: 4),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -547,6 +602,17 @@ class _SettingPageState extends State<SettingPage> {
                   // Implement dark mode functionality
                 },
               ),
+              const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
+              _buildSettingItemWithSwitch(
+                title: _isUpdatingLocationSharing
+                    ? 'Location Sharing (updating...)'
+                    : 'Location Sharing',
+                subtitle: _locationSharing
+                    ? 'Family can see your live location'
+                    : 'Hidden from family map',
+                value: _locationSharing,
+                onChanged: _toggleLocationSharingFromSettings,
+              ),
             ],
           ),
         ),
@@ -651,6 +717,7 @@ class _SettingPageState extends State<SettingPage> {
 
   Widget _buildSettingItemWithSwitch({
     required String title,
+    String? subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
@@ -659,20 +726,37 @@ class _SettingPageState extends State<SettingPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF1A1A1A),
-              fontWeight: FontWeight.w500,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF1A1A1A),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                if (subtitle != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF777777),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           Transform.scale(
             scale: 0.9,
             child: Switch(
               value: value,
-              onChanged: onChanged,
-              activeColor: const Color(0xFF4CAF50),
+              onChanged: _isUpdatingLocationSharing ? null : onChanged,
               activeTrackColor: const Color(0xFF4CAF50).withOpacity(0.5),
               inactiveThumbColor: Colors.grey[300],
               inactiveTrackColor: Colors.grey[200],

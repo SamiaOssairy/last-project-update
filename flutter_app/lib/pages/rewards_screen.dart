@@ -135,7 +135,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: const AppBottomNav(selectedIndex: 1),
+        bottomNavigationBar: const AppBottomNav(selectedIndex: 1),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : Center(

@@ -1355,7 +1355,8 @@ class _HomePageState extends State<HomePage> {
               _buildNavItem(Icons.home, 'Home', 0),
               _buildNavItem(Icons.emoji_events, 'Rewards', 1),
               _buildNavItem(Icons.restaurant, 'Food Hub', 2),
-              _buildNavItem(Icons.settings, 'Settings', 3),
+                  _buildNavItem(Icons.map_outlined, 'Map', 3),
+                  _buildNavItem(Icons.settings, 'Settings', 4),
             ],
           ),
         ),
@@ -1378,6 +1379,9 @@ class _HomePageState extends State<HomePage> {
             Navigator.pushNamed(context, '/food-hub');
             break;
           case 3:
+            Navigator.pushNamed(context, '/family-map');
+            break;
+          case 4:
             Navigator.push(
               context,
               MaterialPageRoute(

@@ -1667,4 +1667,273 @@ class ApiService {
       throw Exception(errorData['message'] ?? 'Failed to delete grocery item');
     }
   }
+
+  // ==================== LOCATION / TRACKING ====================
+
+  Future<Map<String, dynamic>> updateMyLocation(double latitude, double longitude) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/location/update'),
+      headers: headers,
+      body: jsonEncode({'latitude': latitude, 'longitude': longitude}),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to update location');
+  }
+
+  Future<Map<String, dynamic>> toggleLocationSharing(bool enabled) async {
+    final headers = await _getHeaders();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/location/toggle'),
+      headers: headers,
+      body: jsonEncode({'is_sharing_enabled': enabled}),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to toggle sharing');
+  }
+
+  Future<Map<String, dynamic>> getMyLocation() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/location/me'), headers: headers);
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get my location');
+  }
+
+  Future<List<dynamic>> getFamilyLocations() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/location/family'), headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['locations'] ?? [];
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get family locations');
+  }
+
+  Future<List<dynamic>> getFamilyMembers() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/location/family-members'), headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['members'] ?? [];
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get family members');
+  }
+
+  // ------ Permissions ------
+
+  Future<Map<String, dynamic>> requestLocationPermission(String targetMail) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/location/permissions'),
+      headers: headers,
+      body: jsonEncode({'target_mail': targetMail}),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) return jsonDecode(response.body);
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to request permission');
+  }
+
+  Future<List<dynamic>> getIncomingPermissionRequests() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/location/permissions/incoming'), headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['permissions'] ?? [];
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get incoming permissions');
+  }
+
+  Future<List<dynamic>> getOutgoingPermissionRequests() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/location/permissions/outgoing'), headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['permissions'] ?? [];
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get outgoing permissions');
+  }
+
+  Future<Map<String, dynamic>> respondToPermission(String permissionId, String status) async {
+    final headers = await _getHeaders();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/location/permissions/$permissionId'),
+      headers: headers,
+      body: jsonEncode({'permission_status': status}),
+    );
+    if (response.statusCode == 200) return jsonDecode(response.body);
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to respond to permission');
+  }
+
+  Future<void> revokePermission(String permissionId) async {
+    final headers = await _getHeaders();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/location/permissions/$permissionId'),
+      headers: headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['message'] ?? 'Failed to revoke permission');
+    }
+  }
+
+  // ------ Location history ------
+
+  Future<List<dynamic>> getLocationHistory({String? memberMail, String? startDate, String? endDate}) async {
+    final headers = await _getHeaders();
+    final params = <String, String>{};
+    if (memberMail != null) params['member_mail'] = memberMail;
+    if (startDate != null) params['start_date'] = startDate;
+    if (endDate != null) params['end_date'] = endDate;
+    final uri = Uri.parse('$baseUrl/location/history').replace(queryParameters: params.isNotEmpty ? params : null);
+    final response = await http.get(uri, headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['history'] ?? [];
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get location history');
+  }
+
+  Future<void> deleteLocationHistory() async {
+    final headers = await _getHeaders();
+    final response = await http.delete(Uri.parse('$baseUrl/location/history'), headers: headers);
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['message'] ?? 'Failed to delete location history');
+    }
+  }
+
+  // ------ Location alerts ------
+
+  Future<Map<String, dynamic>> createLocationAlert(Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/location/alerts'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) return jsonDecode(response.body);
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to create alert');
+  }
+
+  Future<List<dynamic>> getMyAlerts({bool unreadOnly = false}) async {
+    final headers = await _getHeaders();
+    final uri = unreadOnly
+        ? Uri.parse('$baseUrl/location/alerts?unread_only=true')
+        : Uri.parse('$baseUrl/location/alerts');
+    final response = await http.get(uri, headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['alerts'] ?? [];
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get alerts');
+  }
+
+  Future<int> getUnreadLocationAlertCount() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/location/alerts/unread-count'), headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['count'] ?? 0;
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get unread count');
+  }
+
+  Future<void> markAlertRead(String alertId) async {
+    final headers = await _getHeaders();
+    final response = await http.patch(Uri.parse('$baseUrl/location/alerts/$alertId/read'), headers: headers);
+    if (response.statusCode != 200) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['message'] ?? 'Failed to mark alert read');
+    }
+  }
+
+  Future<void> markAllAlertsRead() async {
+    final headers = await _getHeaders();
+    final response = await http.patch(Uri.parse('$baseUrl/location/alerts/read-all'), headers: headers);
+    if (response.statusCode != 200) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['message'] ?? 'Failed to mark all alerts read');
+    }
+  }
+
+  Future<void> deleteLocationAlert(String alertId) async {
+    final headers = await _getHeaders();
+    final response = await http.delete(Uri.parse('$baseUrl/location/alerts/$alertId'), headers: headers);
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['message'] ?? 'Failed to delete alert');
+    }
+  }
+
+  // ------ Shared locations ------
+
+  Future<Map<String, dynamic>> shareLocation(Map<String, dynamic> data) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/location/shared'),
+      headers: headers,
+      body: jsonEncode(data),
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) return jsonDecode(response.body);
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to share location');
+  }
+
+  Future<List<dynamic>> getReceivedLocations() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/location/shared/received'), headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['locations'] ?? [];
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get received locations');
+  }
+
+  Future<List<dynamic>> getSentLocations() async {
+    final headers = await _getHeaders();
+    final response = await http.get(Uri.parse('$baseUrl/location/shared/sent'), headers: headers);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']?['locations'] ?? [];
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get sent locations');
+  }
+
+  Future<void> markSharedLocationViewed(String sharedLocationId) async {
+    final headers = await _getHeaders();
+    final response = await http.patch(
+      Uri.parse('$baseUrl/location/shared/$sharedLocationId/viewed'),
+      headers: headers,
+    );
+    if (response.statusCode != 200) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['message'] ?? 'Failed to mark location viewed');
+    }
+  }
+
+  Future<void> deleteSharedLocation(String sharedLocationId) async {
+    final headers = await _getHeaders();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/location/shared/$sharedLocationId'),
+      headers: headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['message'] ?? 'Failed to delete shared location');
+    }
+  }
 }

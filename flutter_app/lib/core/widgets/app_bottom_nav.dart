@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 
 /// Shared bottom navigation bar used across all main screens.
 ///
-/// Pass the current [selectedIndex] (0‑3) to highlight the active tab.
+/// Pass the current [selectedIndex] (0-4) to highlight the active tab.
 /// The navigation targets are:
 ///   0 → /home
 ///   1 → /rewards
 ///   2 → /food-hub
-///   3 → /settings
+///   3 → /family-map
+///   4 → /settings
 class AppBottomNav extends StatelessWidget {
   final int selectedIndex;
   const AppBottomNav({super.key, this.selectedIndex = 0});
@@ -22,12 +23,13 @@ class AppBottomNav extends StatelessWidget {
       showUnselectedLabels: true,
       onTap: (index) => _onTap(context, index),
       items: const [
-        BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined), label: 'Home'),
+        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
         BottomNavigationBarItem(
             icon: Icon(Icons.emoji_events_outlined), label: 'Rewards'),
         BottomNavigationBarItem(
             icon: Icon(Icons.restaurant_outlined), label: 'Food Hub'),
+        BottomNavigationBarItem(
+            icon: Icon(Icons.map_outlined), label: 'Map'),
         BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined), label: 'Settings'),
       ],
@@ -47,6 +49,9 @@ class AppBottomNav extends StatelessWidget {
         Navigator.pushReplacementNamed(context, '/food-hub');
         break;
       case 3:
+        Navigator.pushReplacementNamed(context, '/family-map');
+        break;
+      case 4:
         Navigator.pushReplacementNamed(context, '/settings');
         break;
     }
