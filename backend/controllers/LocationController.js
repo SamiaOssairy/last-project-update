@@ -20,6 +20,9 @@ exports.updateLocation = catchAsync(async (req, res, next) => {
     return next(new AppError("Please provide latitude and longitude", 400));
   }
 
+  const existingShare = await LocationShare.findOne({ member_mail: req.member.mail });
+  const sharingEnabled = existingShare ? existingShare.is_sharing_enabled : true;
+
   // Upsert location share record
   const locationShare = await LocationShare.findOneAndUpdate(
     { member_mail: req.member.mail },
@@ -29,7 +32,7 @@ exports.updateLocation = catchAsync(async (req, res, next) => {
       latitude,
       longitude,
       last_updated: Date.now(),
-      is_sharing_enabled: true
+      is_sharing_enabled: sharingEnabled
     },
     { upsert: true, new: true }
   );

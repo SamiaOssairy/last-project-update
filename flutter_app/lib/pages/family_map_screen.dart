@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/services/api_service.dart';
 import '../core/styling/app_color.dart';
 import '../core/widgets/app_bottom_nav.dart';
@@ -81,11 +82,19 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
         });
       }
 
+      final myLocResponse = await _api.getMyLocation().catchError((_) => <String, dynamic>{});
+      if (myLocResponse.containsKey('data')) {
+        final locData = myLocResponse['data']?['location'];
+        if (locData != null) {
+          _isSharingEnabled = locData['is_sharing_enabled'] ?? true;
+          _myMail = locData['member_mail']?.toString();
+        }
+      }
+
       await _updateMyLiveLocation();
 
       final results = await Future.wait([
         _api.getFamilyLocations(),
-        _api.getMyLocation().catchError((_) => <String, dynamic>{}),
         _api.getUnreadLocationAlertCount().catchError((_) => 0),
       ]);
 
@@ -93,15 +102,7 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
 
-      final myLoc = results[1] as Map<String, dynamic>;
-      final unreadCount = results[2] as int;
-      if (myLoc.containsKey('data')) {
-        final locData = myLoc['data']?['location'];
-        if (locData != null) {
-          _isSharingEnabled = locData['is_sharing_enabled'] ?? true;
-          _myMail = locData['member_mail']?.toString();
-        }
-      }
+      final unreadCount = results[1] as int;
 
       final filteredFamily = locations.where((location) {
         final locationMail = location['member_mail']?.toString();
@@ -239,10 +240,65 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
     return lat is num && lng is num;
   }
 
+  bool _isMemberOnline(Map<String, dynamic> loc, {bool isYou = false}) {
+    if (isYou) return true;
+    if (loc['is_sharing_enabled'] != true) return false;
+    final dateStr = loc['last_updated']?.toString();
+    final dt = dateStr != null ? DateTime.tryParse(dateStr) : null;
+    if (dt == null) return false;
+    return DateTime.now().difference(dt) <= const Duration(minutes: 2);
+  }
+
+  String _relativeTime(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
+    if (diff.inHours < 24) return '${diff.inHours} hr ago';
+    return DateFormat('MMM d, h:mm a').format(dt.toLocal());
+  }
+
   String _memberPresence(Map<String, dynamic> loc) {
     final lastUpdated = loc['last_updated']?.toString();
     if (lastUpdated == null) return 'No location update yet';
-    return _timeAgo(lastUpdated);
+    final dt = DateTime.tryParse(lastUpdated);
+    if (dt == null) return 'No location update yet';
+    final timeText = _relativeTime(dt);
+    return _isMemberOnline(loc) ? 'Online $timeText' : 'Last update $timeText';
+  }
+
+  Future<void> _openDirectionsToMember(Map<String, dynamic> loc) async {
+    if (!_hasCoordinates(loc)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This member has no saved location yet.')),
+      );
+      return;
+    }
+
+    final destinationLat = (loc['latitude'] as num).toDouble();
+    final destinationLng = (loc['longitude'] as num).toDouble();
+
+    final params = <String, String>{
+      'api': '1',
+      'destination': '$destinationLat,$destinationLng',
+      'travelmode': 'driving',
+    };
+
+    if (_myPosition != null) {
+      params['origin'] = '${_myPosition!.latitude},${_myPosition!.longitude}';
+    }
+
+    final uri = Uri.https('www.google.com', '/maps/dir/', params);
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not open Google Maps on this device.')),
+    );
   }
 
   Future<void> _updateMyLiveLocation() async {
@@ -814,7 +870,7 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
       final lng = (loc['longitude'] as num).toDouble();
       final color = _colorForIndex(i);
       final name = loc['member_username'] ?? 'Unknown';
-      final isOnline = loc['is_sharing_enabled'] == true;
+      final isOnline = _isMemberOnline(loc);
 
       return Marker(
         point: LatLng(lat, lng),
@@ -831,13 +887,27 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
                   color: Colors.white.withOpacity(0.94),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: Text(
-                  name.split(' ').first,
-                  style: TextStyle(
-                    color: Appcolor.textDark,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 11,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: isOnline ? const Color(0xFF2E7D32) : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      name.split(' ').first,
+                      style: TextStyle(
+                        color: Appcolor.textDark,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 6),
@@ -867,7 +937,7 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
     final name = loc['member_username'] ?? 'Unknown';
     final type = loc['member_type'] ?? '';
     final color = _colorForIndex(i);
-    final isOnline = loc['is_sharing_enabled'] == true;
+    final isOnline = _isMemberOnline(loc);
     final isSelected = _selectedMember != null &&
         _selectedMember!['member_mail'] == loc['member_mail'];
 
@@ -900,15 +970,31 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              name.split(' ').first,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Appcolor.textDark,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: isOnline ? const Color(0xFF2E7D32) : Colors.grey,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    name.split(' ').first,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Appcolor.textDark,
+                    ),
+                  ),
+                ),
+              ],
             ),
             Text(
               _memberPresence(loc),
@@ -929,10 +1015,9 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
     final name = loc['member_username'] ?? 'Unknown';
     final type = loc['member_type'] ?? 'Member';
     final mail = loc['member_mail'] ?? '';
-    final lastUpdated = loc['last_updated']?.toString();
     final i = _familyLocations.indexWhere((l) => l['member_mail'] == loc['member_mail']);
     final isYou = type == 'You';
-    final isOnline = loc['is_sharing_enabled'] == true || isYou;
+    final isOnline = _isMemberOnline(loc, isYou: isYou);
     final color = isYou ? const Color(0xFF1AA7EC) : _colorForIndex(i >= 0 ? i : 0);
 
     return Card(
@@ -1007,6 +1092,20 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
                         style: TextStyle(color: Appcolor.textLight, fontSize: 12),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _hasCoordinates(loc) ? () => _openDirectionsToMember(loc) : null,
+                      icon: const Icon(Icons.directions, size: 18),
+                      label: const Text('Directions'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0B8FCE),
+                        side: const BorderSide(color: Color(0xFFBDE8FF)),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
                   ),
                 ],
               ),
