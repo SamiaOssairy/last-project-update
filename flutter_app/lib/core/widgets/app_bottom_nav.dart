@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../localization/app_i18n.dart';
 
 /// Shared bottom navigation bar used across all main screens.
 ///
@@ -15,6 +16,8 @@ class AppBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAr = AppI18n.isArabic(context);
+
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
       currentIndex: selectedIndex,
@@ -22,16 +25,16 @@ class AppBottomNav extends StatelessWidget {
       unselectedItemColor: Colors.grey,
       showUnselectedLabels: true,
       onTap: (index) => _onTap(context, index),
-      items: const [
-        BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
+        items: [
+        BottomNavigationBarItem(icon: const Icon(Icons.home_outlined), label: isAr ? 'الرئيسية' : 'Home'),
         BottomNavigationBarItem(
-            icon: Icon(Icons.emoji_events_outlined), label: 'Rewards'),
+          icon: const Icon(Icons.emoji_events_outlined), label: isAr ? 'المكافآت' : 'Rewards'),
         BottomNavigationBarItem(
-            icon: Icon(Icons.restaurant_outlined), label: 'Food Hub'),
+          icon: const Icon(Icons.restaurant_outlined), label: isAr ? 'الطعام' : 'Food Hub'),
         BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined), label: 'Map'),
+          icon: const Icon(Icons.map_outlined), label: isAr ? 'الخريطة' : 'Map'),
         BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined), label: 'Settings'),
+          icon: const Icon(Icons.settings_outlined), label: isAr ? 'الإعدادات' : 'Settings'),
       ],
     );
   }

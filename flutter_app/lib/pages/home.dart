@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/services/api_service.dart';
 import '../core/models/member_model.dart';
+import '../core/localization/app_i18n.dart';
 import 'setting.dart';
 import 'signup_login.dart';
 import 'manage_accounts_page.dart';
@@ -24,6 +25,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final ApiService _apiService = ApiService();
+  String _t(String en, String ar) => AppI18n.t(context, en, ar);
   
   int _activeTab = 0;
   bool _locationSharing = true;
@@ -74,13 +76,13 @@ class _HomePageState extends State<HomePage> {
       await _fetchFamilyMembers();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Switched account')),
+        SnackBar(content: Text(_t('Switched account', 'تم تبديل الحساب'))),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to switch account: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text('${_t('Failed to switch account', 'فشل تبديل الحساب')}: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -110,9 +112,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'Accounts',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                Text(
+                  _t('Accounts', 'الحسابات'),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 10),
                 if (_savedProfiles.isNotEmpty)
@@ -127,8 +129,8 @@ class _HomePageState extends State<HomePage> {
 
                     if (active == null) return const SizedBox.shrink();
 
-                    final activeFamily = active['familyTitle']?.toString() ?? 'Family';
-                    final activeUser = active['username']?.toString() ?? 'Member';
+                    final activeFamily = active['familyTitle']?.toString() ?? _t('Family', 'العائلة');
+                    final activeUser = active['username']?.toString() ?? _t('Member', 'عضو');
                     final activeMail = active['mail']?.toString() ?? '';
                     final initial = (activeUser.isNotEmpty ? activeUser[0] : 'A').toUpperCase();
 
@@ -158,8 +160,8 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Current account',
+                                Text(
+                                  _t('Current account', 'الحساب الحالي'),
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF2E7D32),
@@ -179,15 +181,15 @@ class _HomePageState extends State<HomePage> {
                     );
                   }),
                 if (_savedProfiles.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No saved accounts yet'),
+                    child: Text(_t('No saved accounts yet', 'لا توجد حسابات محفوظة بعد')),
                   ),
                 if (_savedProfiles.isNotEmpty)
                   ..._savedProfiles.map((profile) {
                     final key = profile['profileKey']?.toString() ?? '';
-                    final familyTitle = profile['familyTitle']?.toString() ?? 'Family';
-                    final username = profile['username']?.toString() ?? 'Member';
+                    final familyTitle = profile['familyTitle']?.toString() ?? _t('Family', 'العائلة');
+                    final username = profile['username']?.toString() ?? _t('Member', 'عضو');
                     final mail = profile['mail']?.toString() ?? '';
                     final isActive = key == _activeProfileKey;
 
@@ -229,7 +231,7 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                         icon: const Icon(Icons.add),
-                        label: const Text('Add New Account'),
+                        label: Text(_t('Add New Account', 'إضافة حساب جديد')),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF2E7D32),
                           side: const BorderSide(color: Color(0xFF4CAF50)),
@@ -249,7 +251,7 @@ class _HomePageState extends State<HomePage> {
                           }
                         },
                         icon: const Icon(Icons.manage_accounts),
-                        label: const Text('Manage Accounts'),
+                        label: Text(_t('Manage Accounts', 'إدارة الحسابات')),
                       ),
                     ],
                   ),
@@ -275,7 +277,7 @@ class _HomePageState extends State<HomePage> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading members: $e')),
+          SnackBar(content: Text('${_t('Error loading members', 'خطأ في تحميل الأعضاء')}: $e')),
         );
       }
     }
@@ -733,7 +735,9 @@ class _HomePageState extends State<HomePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _familyTitle.isNotEmpty ? '$_familyTitle Family' : 'Family Hub',
+                      _familyTitle.isNotEmpty
+                          ? (_t('$_familyTitle Family', 'عائلة $_familyTitle'))
+                          : _t('Family Hub', 'فاميلي هب'),
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
@@ -742,7 +746,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Welcome $_userName',
+                      _t('Welcome $_userName', 'مرحباً $_userName'),
                       style: const TextStyle(
                         fontSize: 14,
                         color: Color(0xFF666666),
@@ -759,8 +763,8 @@ class _HomePageState extends State<HomePage> {
                             color: const Color(0xFF4CAF50).withOpacity(0.35),
                           ),
                         ),
-                        child: const Text(
-                          'Active profile',
+                        child: Text(
+                          _t('Active profile', 'الحساب النشط'),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -780,20 +784,20 @@ class _HomePageState extends State<HomePage> {
               context: context,
               builder: (dialogContext) {
                 return AlertDialog(
-                  title: const Text('Logout options'),
-                  content: const Text('Choose logout scope for this device.'),
+                  title: Text(_t('Logout options', 'خيارات تسجيل الخروج')),
+                  content: Text(_t('Choose logout scope for this device.', 'اختر نطاق تسجيل الخروج لهذا الجهاز.')),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop('cancel'),
-                      child: const Text('Cancel'),
+                      child: Text(_t('Cancel', 'إلغاء')),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop('current'),
-                      child: const Text('Logout current'),
+                      child: Text(_t('Logout current', 'تسجيل خروج الحساب الحالي')),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop('all'),
-                      child: const Text('Logout all', style: TextStyle(color: Colors.red)),
+                      child: Text(_t('Logout all', 'تسجيل خروج جميع الحسابات'), style: const TextStyle(color: Colors.red)),
                     ),
                   ],
                 );
@@ -807,7 +811,7 @@ class _HomePageState extends State<HomePage> {
             }
           },
           icon: const Icon(Icons.logout, size: 20),
-          label: const Text('Logout'),
+          label: Text(_t('Logout', 'خروج')),
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF4CAF50),
             side: const BorderSide(color: Color(0xFF4CAF50), width: 2),
@@ -825,8 +829,8 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Family Members',
+        Text(
+          _t('Family Members', 'أفراد العائلة'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -906,7 +910,7 @@ class _HomePageState extends State<HomePage> {
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              member.memberType?.type ?? 'Member',
+              member.memberType?.type ?? _t('Member', 'عضو'),
               style: const TextStyle(
                 fontSize: 10,
                 color: Color(0xFF4CAF50),
@@ -969,7 +973,7 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    member.memberType?.type ?? 'Member',
+                    member.memberType?.type ?? _t('Member', 'عضو'),
                     style: const TextStyle(
                       color: Color(0xFF4CAF50),
                       fontWeight: FontWeight.w600,
@@ -1099,7 +1103,7 @@ class _HomePageState extends State<HomePage> {
               actions: [
                 TextButton(
                   onPressed: isDeleting ? null : () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel'),
+                  child: Text(_t('Cancel', 'إلغاء')),
                 ),
                 ElevatedButton(
                   onPressed: isDeleting
@@ -1164,8 +1168,8 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Quick Actions',
+        Text(
+          _t('Quick Actions', 'إجراءات سريعة'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -1198,13 +1202,13 @@ class _HomePageState extends State<HomePage> {
                     ),
                     borderRadius: BorderRadius.circular(15),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.person_add, color: Colors.white, size: 24),
                       SizedBox(width: 10),
                       Text(
-                        'Add New Member',
+                        _t('Add New Member', 'إضافة عضو جديد'),
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -1368,8 +1372,8 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Upcoming Activities',
+        Text(
+          _t('Upcoming Activities', 'الأنشطة القادمة'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -1504,8 +1508,8 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Safety & Connection',
+        Text(
+          _t('Safety & Connection', 'الأمان والتواصل'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,

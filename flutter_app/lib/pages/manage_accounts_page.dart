@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/services/api_service.dart';
+import '../core/localization/app_i18n.dart';
 
 class ManageAccountsPage extends StatefulWidget {
   const ManageAccountsPage({super.key});
@@ -14,6 +15,8 @@ class _ManageAccountsPageState extends State<ManageAccountsPage> {
   String _activeProfileKey = '';
   bool _loading = true;
   bool _changed = false;
+
+  String _t(String en, String ar) => AppI18n.t(context, en, ar);
 
   @override
   void initState() {
@@ -38,7 +41,7 @@ class _ManageAccountsPageState extends State<ManageAccountsPage> {
       await _loadData();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account switched')),
+        SnackBar(content: Text(_t('Account switched', 'تم تبديل الحساب'))),
       );
       _changed = true;
       Navigator.of(context).pop(true);
@@ -46,7 +49,7 @@ class _ManageAccountsPageState extends State<ManageAccountsPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to switch account: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text('${_t('Failed to switch account', 'فشل تبديل الحساب')}: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -59,14 +62,14 @@ class _ManageAccountsPageState extends State<ManageAccountsPage> {
       await _loadData();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account removed')),
+        SnackBar(content: Text(_t('Account removed', 'تم حذف الحساب'))),
       );
       _changed = true;
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to remove account: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text('${_t('Failed to remove account', 'فشل حذف الحساب')}: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -97,13 +100,13 @@ class _ManageAccountsPageState extends State<ManageAccountsPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Manage Accounts'),
+          title: Text(_t('Manage Accounts', 'إدارة الحسابات')),
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : _profiles.isEmpty
-                ? const Center(
-                    child: Text('No saved accounts'),
+                ? Center(
+                    child: Text(_t('No saved accounts', 'لا توجد حسابات محفوظة')),
                   )
                 : ReorderableListView.builder(
                   padding: const EdgeInsets.all(16),
@@ -112,8 +115,8 @@ class _ManageAccountsPageState extends State<ManageAccountsPage> {
                   itemBuilder: (context, index) {
                     final profile = _profiles[index];
                     final profileKey = profile['profileKey']?.toString() ?? '';
-                    final familyTitle = profile['familyTitle']?.toString() ?? 'Family';
-                    final username = profile['username']?.toString() ?? 'Member';
+                    final familyTitle = profile['familyTitle']?.toString() ?? _t('Family', 'العائلة');
+                    final username = profile['username']?.toString() ?? _t('Member', 'عضو');
                     final mail = profile['mail']?.toString() ?? '';
                     final isActive = profileKey == _activeProfileKey;
 
@@ -142,27 +145,30 @@ class _ManageAccountsPageState extends State<ManageAccountsPage> {
                                 child: Icon(Icons.check_circle, color: Color(0xFF4CAF50)),
                               ),
                             IconButton(
-                              tooltip: 'Switch account',
+                              tooltip: _t('Switch account', 'تبديل الحساب'),
                               icon: const Icon(Icons.swap_horiz),
                               onPressed: isActive ? null : () => _switchProfile(profileKey),
                             ),
                             IconButton(
-                              tooltip: 'Remove account',
+                              tooltip: _t('Remove account', 'حذف الحساب'),
                               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                               onPressed: () async {
                                 final confirmed = await showDialog<bool>(
                                   context: context,
                                   builder: (dialogContext) => AlertDialog(
-                                    title: const Text('Remove account?'),
-                                    content: Text('Remove $familyTitle ($username) from this device?'),
+                                    title: Text(_t('Remove account?', 'حذف الحساب؟')),
+                                    content: Text(_t(
+                                      'Remove $familyTitle ($username) from this device?',
+                                      'حذف $familyTitle ($username) من هذا الجهاز؟',
+                                    )),
                                     actions: [
                                       TextButton(
                                         onPressed: () => Navigator.of(dialogContext).pop(false),
-                                        child: const Text('Cancel'),
+                                        child: Text(_t('Cancel', 'إلغاء')),
                                       ),
                                       TextButton(
                                         onPressed: () => Navigator.of(dialogContext).pop(true),
-                                        child: const Text('Remove', style: TextStyle(color: Colors.red)),
+                                        child: Text(_t('Remove', 'حذف'), style: const TextStyle(color: Colors.red)),
                                       ),
                                     ],
                                   ),

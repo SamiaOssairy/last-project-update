@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../core/styling/responsive.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/services/api_service.dart';
+import '../core/localization/app_i18n.dart';
+import '../core/widgets/language_switch_chip.dart';
 import 'home.dart';
 import 'manage_accounts_page.dart';
 
@@ -19,6 +21,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   List<Map<String, dynamic>> _savedProfiles = [];
   String _activeProfileKey = '';
+
+  String _t(String en, String ar) => AppI18n.t(context, en, ar);
 
   @override
   void initState() {
@@ -55,7 +59,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to switch profile: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text('${_t('Failed to switch profile', 'فشل تبديل الحساب')}: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -83,13 +87,13 @@ class _LoginPageState extends State<LoginPage> {
       await _loadSavedProfiles();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved profile removed')),
+        SnackBar(content: Text(_t('Saved profile removed', 'تم حذف الحساب المحفوظ'))),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to remove profile: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text('${_t('Failed to remove profile', 'فشل حذف الحساب')}: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -119,8 +123,8 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'Switch Account',
+                Text(
+                  _t('Switch Account', 'تبديل الحساب'),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 10),
@@ -136,8 +140,8 @@ class _LoginPageState extends State<LoginPage> {
 
                     if (active == null) return const SizedBox.shrink();
 
-                    final activeFamily = active['familyTitle']?.toString() ?? 'Family';
-                    final activeUser = active['username']?.toString() ?? 'Member';
+                    final activeFamily = active['familyTitle']?.toString() ?? _t('Family', 'العائلة');
+                    final activeUser = active['username']?.toString() ?? _t('Member', 'عضو');
                     final activeMail = active['mail']?.toString() ?? '';
                     final initial = (activeUser.isNotEmpty ? activeUser[0] : 'A').toUpperCase();
 
@@ -167,8 +171,8 @@ class _LoginPageState extends State<LoginPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'Current account',
+                                Text(
+                                  _t('Current account', 'الحساب الحالي'),
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF2E7D32),
@@ -188,15 +192,15 @@ class _LoginPageState extends State<LoginPage> {
                     );
                   }),
                 if (_savedProfiles.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No saved accounts yet'),
+                    child: Text(_t('No saved accounts yet', 'لا توجد حسابات محفوظة بعد')),
                   ),
                 if (_savedProfiles.isNotEmpty)
                   ..._savedProfiles.map((profile) {
                     final profileKey = profile['profileKey']?.toString() ?? '';
-                    final familyTitle = profile['familyTitle']?.toString() ?? 'Family';
-                    final username = profile['username']?.toString() ?? 'Member';
+                    final familyTitle = profile['familyTitle']?.toString() ?? _t('Family', 'العائلة');
+                    final username = profile['username']?.toString() ?? _t('Member', 'عضو');
                     final mail = profile['mail']?.toString() ?? '';
 
                     return ListTile(
@@ -234,7 +238,7 @@ class _LoginPageState extends State<LoginPage> {
                           });
                         },
                         icon: const Icon(Icons.add),
-                        label: const Text('Add New Account'),
+                        label: Text(_t('Add New Account', 'إضافة حساب جديد')),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF2E7D32),
                           side: const BorderSide(color: Color(0xFF4CAF50)),
@@ -252,7 +256,7 @@ class _LoginPageState extends State<LoginPage> {
                           }
                         },
                         icon: const Icon(Icons.manage_accounts),
-                        label: const Text('Manage Accounts'),
+                        label: Text(_t('Manage Accounts', 'إدارة الحسابات')),
                       ),
                     ],
                   ),
@@ -268,7 +272,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _handleEmailSubmit() async {
     if (_emailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email')),
+        SnackBar(content: Text(_t('Please enter your email', 'يرجى إدخال البريد الإلكتروني'))),
       );
       return;
     }
@@ -284,7 +288,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       if (families.isEmpty) {
-        throw Exception('No family found for this email');
+        throw Exception(_t('No family found for this email', 'لم يتم العثور على عائلة لهذا البريد'));
       }
 
       Navigator.of(context).push(
@@ -300,7 +304,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not continue: ${e.toString().replaceAll('Exception: ', '')}'),
+            content: Text('${_t('Could not continue', 'تعذر المتابعة')}: ${e.toString().replaceAll('Exception: ', '')}'),
             duration: const Duration(seconds: 5),
           ),
         );
@@ -339,6 +343,11 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                const Align(
+                  alignment: AlignmentDirectional.topEnd,
+                  child: LanguageSwitchChip(),
+                ),
+                const SizedBox(height: 8),
                 // Security Icon
                 GestureDetector(
                   onLongPress: _showAccountSwitcherSheet,
@@ -361,15 +370,15 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Long press icon to switch accounts',
+                Text(
+                  _t('Long press icon to switch accounts', 'اضغط مطولاً على الأيقونة لتبديل الحسابات'),
                   style: TextStyle(fontSize: 11, color: Color(0xFF6A7E69)),
                 ),
                 const SizedBox(height: 32),
                 
                 // Welcome Back Text
-                const Text(
-                  'Welcome Back !',
+                Text(
+                  _t('Welcome Back !', 'مرحباً بعودتك!'),
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -387,8 +396,8 @@ class _LoginPageState extends State<LoginPage> {
                       itemBuilder: (context, index) {
                         final profile = _savedProfiles[index];
                         final profileKey = profile['profileKey']?.toString() ?? '';
-                        final familyTitle = profile['familyTitle']?.toString() ?? 'Family';
-                        final username = profile['username']?.toString() ?? 'Member';
+                        final familyTitle = profile['familyTitle']?.toString() ?? _t('Family', 'العائلة');
+                        final username = profile['username']?.toString() ?? _t('Member', 'عضو');
 
                         return InputChip(
                           label: Text(
@@ -410,16 +419,16 @@ class _LoginPageState extends State<LoginPage> {
                                     context: context,
                                     builder: (dialogContext) {
                                       return AlertDialog(
-                                        title: const Text('Remove saved profile?'),
-                                        content: Text('Remove $familyTitle ($username) from this device?'),
+                                        title: Text(_t('Remove saved profile?', 'حذف الحساب المحفوظ؟')),
+                                        content: Text(_t('Remove $familyTitle ($username) from this device?', 'حذف $familyTitle ($username) من هذا الجهاز؟')),
                                         actions: [
                                           TextButton(
                                             onPressed: () => Navigator.of(dialogContext).pop(false),
-                                            child: const Text('Cancel'),
+                                            child: Text(_t('Cancel', 'إلغاء')),
                                           ),
                                           TextButton(
                                             onPressed: () => Navigator.of(dialogContext).pop(true),
-                                            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+                                            child: Text(_t('Remove', 'حذف'), style: const TextStyle(color: Colors.red)),
                                           ),
                                         ],
                                       );
@@ -444,8 +453,8 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: TextField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
-                      hintText: 'Email',
+                    decoration: InputDecoration(
+                      hintText: _t('Email', 'البريد الإلكتروني'),
                       hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
@@ -482,8 +491,8 @@ class _LoginPageState extends State<LoginPage> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                          'Continue',
+                        : Text(
+                            _t('Continue', 'متابعة'),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -495,8 +504,8 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 20),
                 
                 // Security Message
-                const Text(
-                  'Your password is securely encrypted using top-tier technology',
+                Text(
+                  _t('Your password is securely encrypted using top-tier technology', 'كلمة المرور الخاصة بك مشفرة بأعلى مستوى من الأمان'),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.black45,
@@ -506,20 +515,20 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 24),
                 
                 // Divider with text
-                const Row(
+                Row(
                   children: [
-                    Expanded(child: Divider(color: Colors.black26)),
+                    const Expanded(child: Divider(color: Colors.black26)),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        'Or sign in with',
-                        style: TextStyle(
+                        _t('Or sign in with', 'أو سجّل الدخول باستخدام'),
+                        style: const TextStyle(
                           color: Colors.black45,
                           fontSize: 14,
                         ),
                       ),
                     ),
-                    Expanded(child: Divider(color: Colors.black26)),
+                    const Expanded(child: Divider(color: Colors.black26)),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -596,8 +605,8 @@ class _LoginPageState extends State<LoginPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      "Don't have an account? ",
+                    Text(
+                      _t("Don't have an account? ", 'ليس لديك حساب؟ '),
                       style: TextStyle(
                         color: Colors.black54,
                         fontSize: 14,
@@ -612,8 +621,8 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         );
                       },
-                      child: const Text(
-                        'Sign Up',
+                      child: Text(
+                        _t('Sign Up', 'إنشاء حساب'),
                         style: TextStyle(
                           color: Color(0xFF4CAF50),
                           fontSize: 14,
@@ -655,6 +664,8 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
   bool _isLoading = false;
   String? _selectedFamilyId;
 
+  String _t(String en, String ar) => AppI18n.t(context, en, ar);
+
   @override
   void initState() {
     super.initState();
@@ -672,14 +683,14 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
   Future<void> _handleLogin() async {
     if (_selectedFamilyId == null || _selectedFamilyId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please choose your family')),
+        SnackBar(content: Text(_t('Please choose your family', 'يرجى اختيار العائلة'))),
       );
       return;
     }
 
     if (_passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your password')),
+        SnackBar(content: Text(_t('Please enter your password', 'يرجى إدخال كلمة المرور'))),
       );
       return;
     }
@@ -704,7 +715,7 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Welcome ${response['data']['username']}!')),
+        SnackBar(content: Text(_t('Welcome ${response['data']['username']}!', 'مرحباً ${response['data']['username']}!'))),
       );
 
       if (isFirstLogin) {
@@ -722,7 +733,7 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Login failed: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text('${_t('Login failed', 'فشل تسجيل الدخول')}: ${e.toString().replaceAll('Exception: ', '')}'),
           duration: const Duration(seconds: 5),
         ),
       );
@@ -971,7 +982,7 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
         backgroundColor: const Color(0xFFE7F0E5),
         foregroundColor: const Color(0xFF1A1A1A),
         elevation: 0,
-        title: const Text('Choose Family'),
+        title: Text(_t('Choose Family', 'اختر العائلة')),
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -994,9 +1005,14 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                const Align(
+                  alignment: AlignmentDirectional.topEnd,
+                  child: LanguageSwitchChip(),
+                ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Continue Login',
+                const SizedBox(height: 8),
+                Text(
+                  _t('Continue Login', 'متابعة تسجيل الدخول'),
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -1022,10 +1038,10 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
                     child: DropdownButton<String>(
                       isExpanded: true,
                       value: _selectedFamilyId,
-                      hint: const Text('Select family'),
+                      hint: Text(_t('Select family', 'اختر العائلة')),
                       items: widget.families.map((family) {
                         final familyId = family['family_id']?.toString() ?? '';
-                        final title = family['familyTitle']?.toString() ?? 'Family';
+                        final title = family['familyTitle']?.toString() ?? _t('Family', 'العائلة');
                         final username = family['username']?.toString() ?? '';
                         return DropdownMenuItem<String>(
                           value: familyId,
@@ -1050,7 +1066,7 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
-                      hintText: 'Password',
+                      hintText: _t('Password', 'كلمة المرور'),
                       hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
                       border: const OutlineInputBorder(
                         borderSide: BorderSide.none,
@@ -1096,8 +1112,8 @@ class _FamilyPasswordLoginPageState extends State<FamilyPasswordLoginPage> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                            'Log In',
+                        : Text(
+                            _t('Log In', 'تسجيل الدخول'),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
@@ -1135,6 +1151,8 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+
+  String _t(String en, String ar) => AppI18n.t(context, en, ar);
 
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
@@ -1178,42 +1196,42 @@ class _SignUpPageState extends State<SignUpPage> {
     // Validation
     if (_emailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your email')),
+        SnackBar(content: Text(_t('Please enter your email', 'يرجى إدخال البريد الإلكتروني'))),
       );
       return;
     }
 
     if (_birthdateController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your birthdate')),
+        SnackBar(content: Text(_t('Please select your birthdate', 'يرجى اختيار تاريخ الميلاد'))),
       );
       return;
     }
 
     if (_familyTitleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter family title')),
+        SnackBar(content: Text(_t('Please enter family title', 'يرجى إدخال اسم العائلة'))),
       );
       return;
     }
 
     if (_usernameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a username')),
+        SnackBar(content: Text(_t('Please enter a username', 'يرجى إدخال اسم المستخدم'))),
       );
       return;
     }
 
     if (_passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your password')),
+        SnackBar(content: Text(_t('Please enter your password', 'يرجى إدخال كلمة المرور'))),
       );
       return;
     }
 
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
+        SnackBar(content: Text(_t('Passwords do not match', 'كلمتا المرور غير متطابقتين'))),
       );
       return;
     }
@@ -1241,7 +1259,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created successfully! Please login.')),
+          SnackBar(content: Text(_t('Account created successfully! Please login.', 'تم إنشاء الحساب بنجاح! يرجى تسجيل الدخول.'))),
         );
         
         // Navigate to login page
@@ -1252,7 +1270,7 @@ class _SignUpPageState extends State<SignUpPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Signup failed: ${e.toString().replaceAll('Exception: ', '')}')),
+          SnackBar(content: Text('${_t('Signup failed', 'فشل إنشاء الحساب')}: ${e.toString().replaceAll('Exception: ', '')}')),
         );
       }
     } finally {
@@ -1289,6 +1307,11 @@ class _SignUpPageState extends State<SignUpPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                const Align(
+                  alignment: AlignmentDirectional.topEnd,
+                  child: LanguageSwitchChip(),
+                ),
+                const SizedBox(height: 8),
                 const SizedBox(height: 40),
                 
                 // Parent Icon
@@ -1311,8 +1334,8 @@ class _SignUpPageState extends State<SignUpPage> {
                 const SizedBox(height: 28),
                 
                 // Title
-                const Text(
-                  'Create Your Parent Account',
+                Text(
+                  _t('Create Your Parent Account', 'أنشئ حساب ولي الأمر'),
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -1324,7 +1347,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 // Email TextField
                 _buildTextField(
                   controller: _emailController,
-                  hintText: 'Email',
+                  hintText: _t('Email', 'البريد الإلكتروني'),
                   keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 16),
@@ -1339,8 +1362,8 @@ class _SignUpPageState extends State<SignUpPage> {
                     controller: _birthdateController,
                     readOnly: true,
                     onTap: () => _selectDate(context),
-                    decoration: const InputDecoration(
-                      hintText: 'Birthdate',
+                    decoration: InputDecoration(
+                      hintText: _t('Birthdate', 'تاريخ الميلاد'),
                       hintStyle: TextStyle(color: Colors.grey),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
@@ -1361,14 +1384,14 @@ class _SignUpPageState extends State<SignUpPage> {
                 // Family Title TextField
                 _buildTextField(
                   controller: _familyTitleController,
-                  hintText: 'Family Title',
+                  hintText: _t('Family Title', 'اسم العائلة'),
                 ),
                 const SizedBox(height: 16),
                 
                 // Username TextField
                 _buildTextField(
                   controller: _usernameController,
-                  hintText: 'Username',
+                  hintText: _t('Username', 'اسم المستخدم'),
                 ),
                 const SizedBox(height: 16),
                 
@@ -1382,7 +1405,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: InputDecoration(
-                      hintText: 'Password',
+                      hintText: _t('Password', 'كلمة المرور'),
                       hintStyle: const TextStyle(color: Colors.grey),
                       border: const OutlineInputBorder(
                         borderSide: BorderSide.none,
@@ -1419,7 +1442,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
                     decoration: InputDecoration(
-                      hintText: 'Confirm Password',
+                      hintText: _t('Confirm Password', 'تأكيد كلمة المرور'),
                       hintStyle: const TextStyle(color: Colors.grey),
                       border: const OutlineInputBorder(
                         borderSide: BorderSide.none,
@@ -1468,8 +1491,8 @@ class _SignUpPageState extends State<SignUpPage> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Text(
-                            'Sign Up',
+                        : Text(
+                            _t('Sign Up', 'إنشاء حساب'),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w500,
@@ -1484,8 +1507,8 @@ class _SignUpPageState extends State<SignUpPage> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'Already have Family Account ? ',
+                    Text(
+                      _t('Already have Family Account ? ', 'هل لديك حساب عائلة بالفعل؟ '),
                       style: TextStyle(
                         color: Colors.black54,
                         fontSize: 14,
@@ -1495,8 +1518,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       onPressed: () {
                         Navigator.pop(context);
                       },
-                      child: const Text(
-                        'Login',
+                      child: Text(
+                        _t('Login', 'تسجيل الدخول'),
                         style: TextStyle(
                           color: Color(0xFF4CAF50),
                           fontSize: 14,

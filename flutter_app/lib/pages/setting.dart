@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/localization/app_i18n.dart';
 import '../core/services/api_service.dart';
+import '../core/services/locale_service.dart';
 import '../core/widgets/app_bottom_nav.dart';
 
 class SettingPage extends StatefulWidget {
@@ -17,6 +19,7 @@ class SettingPage extends StatefulWidget {
 
 class _SettingPageState extends State<SettingPage> {
   final ApiService _apiService = ApiService();
+  String _t(String en, String ar) => AppI18n.t(context, en, ar);
   
   String _familyTitle = '';
   String _userName = '';
@@ -25,6 +28,7 @@ class _SettingPageState extends State<SettingPage> {
   bool _darkMode = false;
   bool _locationSharing = true;
   bool _isUpdatingLocationSharing = false;
+  String _languageCode = 'en';
 
   @override
   void initState() {
@@ -43,6 +47,49 @@ class _SettingPageState extends State<SettingPage> {
       _userName = userName;
       _familyTitle = familyTitle;
       _activeProfileKey = prefs.getString('activeProfileKey') ?? '';
+      _languageCode = prefs.getString('app_locale') ?? 'en';
+    });
+  }
+
+  Future<void> _showLanguageDialog() async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(_t('Select Language', 'اختر اللغة')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<String>(
+                title: Text(_t('English', 'الإنجليزية')),
+                value: 'en',
+                groupValue: _languageCode,
+                onChanged: (value) => Navigator.of(dialogContext).pop(value),
+              ),
+              RadioListTile<String>(
+                title: Text(_t('Arabic', 'العربية')),
+                value: 'ar',
+                groupValue: _languageCode,
+                onChanged: (value) => Navigator.of(dialogContext).pop(value),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(_t('Cancel', 'إلغاء')),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selected == null || selected == _languageCode) return;
+
+    await LocaleService.setLocale(Locale(selected));
+    if (!mounted) return;
+    setState(() {
+      _languageCode = selected;
     });
   }
 
@@ -62,13 +109,13 @@ class _SettingPageState extends State<SettingPage> {
       await _loadLocationSharing();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile switched successfully')),
+        SnackBar(content: Text(_t('Profile switched successfully', 'تم تبديل الحساب بنجاح'))),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to switch profile: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text('${_t('Failed to switch profile', 'فشل تبديل الحساب')}: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -95,13 +142,13 @@ class _SettingPageState extends State<SettingPage> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile removed successfully')),
+        SnackBar(content: Text(_t('Profile removed successfully', 'تم حذف الحساب بنجاح'))),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to remove profile: ${e.toString().replaceAll('Exception: ', '')}'),
+          content: Text('${_t('Failed to remove profile', 'فشل حذف الحساب')}: ${e.toString().replaceAll('Exception: ', '')}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -111,7 +158,7 @@ class _SettingPageState extends State<SettingPage> {
   void _showSwitchProfileDialog() {
     if (_savedProfiles.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No saved profiles yet. Login to another family first.')),
+        SnackBar(content: Text(_t('No saved profiles yet. Login to another family first.', 'لا توجد حسابات محفوظة بعد. سجّل الدخول إلى عائلة أخرى أولاً.'))),
       );
       return;
     }
@@ -120,7 +167,7 @@ class _SettingPageState extends State<SettingPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Switch Profile'),
+          title: Text(_t('Switch Profile', 'تبديل الحساب')),
           content: SizedBox(
             width: 420,
             child: ListView.separated(
@@ -131,8 +178,8 @@ class _SettingPageState extends State<SettingPage> {
                 final profile = _savedProfiles[index];
                 final profileKey = profile['profileKey']?.toString() ?? '';
                 final isActive = profileKey == _activeProfileKey;
-                final title = profile['familyTitle']?.toString() ?? 'Family';
-                final username = profile['username']?.toString() ?? 'Member';
+                final title = profile['familyTitle']?.toString() ?? _t('Family', 'العائلة');
+                final username = profile['username']?.toString() ?? _t('Member', 'عضو');
                 final mail = profile['mail']?.toString() ?? '';
 
                 return ListTile(
@@ -147,7 +194,7 @@ class _SettingPageState extends State<SettingPage> {
                           child: Icon(Icons.check_circle, color: Color(0xFF4CAF50)),
                         ),
                       IconButton(
-                        tooltip: 'Remove profile',
+                        tooltip: _t('Remove profile', 'حذف الحساب'),
                         icon: const Icon(Icons.close, color: Colors.redAccent),
                         onPressed: () async {
                           Navigator.of(dialogContext).pop();
@@ -155,16 +202,16 @@ class _SettingPageState extends State<SettingPage> {
                             context: context,
                             builder: (confirmContext) {
                               return AlertDialog(
-                                title: const Text('Remove saved profile?'),
-                                content: Text('Remove $title ($username) from saved profiles?'),
+                                title: Text(_t('Remove saved profile?', 'حذف الحساب المحفوظ؟')),
+                                content: Text(_t('Remove $title ($username) from saved profiles?', 'حذف $title ($username) من الحسابات المحفوظة؟')),
                                 actions: [
                                   TextButton(
                                     onPressed: () => Navigator.of(confirmContext).pop(false),
-                                    child: const Text('Cancel'),
+                                    child: Text(_t('Cancel', 'إلغاء')),
                                   ),
                                   TextButton(
                                     onPressed: () => Navigator.of(confirmContext).pop(true),
-                                    child: const Text('Remove', style: TextStyle(color: Colors.red)),
+                                    child: Text(_t('Remove', 'حذف'), style: const TextStyle(color: Colors.red)),
                                   ),
                                 ],
                               );
@@ -191,7 +238,7 @@ class _SettingPageState extends State<SettingPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Close'),
+              child: Text(_t('Close', 'إغلاق')),
             ),
           ],
         );
@@ -356,7 +403,7 @@ class _SettingPageState extends State<SettingPage> {
         ),
         const SizedBox(height: 15),
         Text(
-          _familyTitle.isNotEmpty ? '$_familyTitle Family' : 'Family',
+          _familyTitle.isNotEmpty ? _t('$_familyTitle Family', 'عائلة $_familyTitle') : _t('Family', 'العائلة'),
           style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -365,7 +412,7 @@ class _SettingPageState extends State<SettingPage> {
         ),
         const SizedBox(height: 5),
         Text(
-          'Edit Profile',
+          _t('Edit Profile', 'تعديل الملف الشخصي'),
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[600],
@@ -376,6 +423,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   Widget _buildAccountSection() {
+    final isAr = AppI18n.isArabic(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -394,8 +442,8 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
-              'Account',
+            Text(
+              isAr ? 'الحساب' : 'Account',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -413,42 +461,42 @@ class _SettingPageState extends State<SettingPage> {
           child: Column(
             children: [
               _buildSettingItem(
-                title: 'Personal Information',
+                title: isAr ? 'المعلومات الشخصية' : 'Personal Information',
                 onTap: () {
                   // Navigate to personal information page
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItem(
-                title: 'Family Members',
+                title: isAr ? 'أفراد العائلة' : 'Family Members',
                 onTap: () {
                   // Navigate to family members page
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItem(
-                title: 'Change Password',
+                title: isAr ? 'تغيير كلمة المرور' : 'Change Password',
                 onTap: () {
                   _showChangePasswordDialog();
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItem(
-                title: 'Switch Profile',
+                title: isAr ? 'تبديل الحساب' : 'Switch Profile',
                 onTap: () {
                   _showSwitchProfileDialog();
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItem(
-                title: 'Privacy & Security',
+                title: isAr ? 'الخصوصية والأمان' : 'Privacy & Security',
                 onTap: () {
                   // Navigate to privacy & security page
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItem(
-                title: 'Deactivate Account',
+                title: isAr ? 'تعطيل الحساب' : 'Deactivate Account',
                 titleColor: const Color(0xFF4CAF50),
                 onTap: () {
                   _showDeactivateDialog();
@@ -490,8 +538,8 @@ class _SettingPageState extends State<SettingPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Change Password',
+                          Text(
+                            _t('Change Password', 'تغيير كلمة المرور'),
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
@@ -510,8 +558,8 @@ class _SettingPageState extends State<SettingPage> {
                         controller: currentPasswordController,
                         obscureText: obscureCurrent,
                         decoration: InputDecoration(
-                          labelText: 'Current Password',
-                          hintText: 'Enter current password',
+                          labelText: _t('Current Password', 'كلمة المرور الحالية'),
+                          hintText: _t('Enter current password', 'أدخل كلمة المرور الحالية'),
                           prefixIcon: const Icon(Icons.lock_outline),
                           suffixIcon: IconButton(
                             icon: Icon(obscureCurrent ? Icons.visibility_off : Icons.visibility),
@@ -533,8 +581,8 @@ class _SettingPageState extends State<SettingPage> {
                         controller: newPasswordController,
                         obscureText: obscureNew,
                         decoration: InputDecoration(
-                          labelText: 'New Password',
-                          hintText: 'Enter new password',
+                          labelText: _t('New Password', 'كلمة المرور الجديدة'),
+                          hintText: _t('Enter new password', 'أدخل كلمة المرور الجديدة'),
                           prefixIcon: const Icon(Icons.lock),
                           suffixIcon: IconButton(
                             icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility),
@@ -556,8 +604,8 @@ class _SettingPageState extends State<SettingPage> {
                         controller: confirmPasswordController,
                         obscureText: obscureConfirm,
                         decoration: InputDecoration(
-                          labelText: 'Confirm New Password',
-                          hintText: 'Confirm new password',
+                          labelText: _t('Confirm New Password', 'تأكيد كلمة المرور الجديدة'),
+                          hintText: _t('Confirm new password', 'أكد كلمة المرور الجديدة'),
                           prefixIcon: const Icon(Icons.lock),
                           suffixIcon: IconButton(
                             icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility),
@@ -580,7 +628,7 @@ class _SettingPageState extends State<SettingPage> {
                           Icon(Icons.info_outline, size: 14, color: Colors.grey[500]),
                           const SizedBox(width: 4),
                           Text(
-                            'Password must be at least 6 characters',
+                              _t('Password must be at least 6 characters', 'يجب أن تكون كلمة المرور 6 أحرف على الأقل'),
                             style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                           ),
                         ],
@@ -600,8 +648,8 @@ class _SettingPageState extends State<SettingPage> {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
-                              child: const Text(
-                                'Cancel',
+                              child: Text(
+                                _t('Cancel', 'إلغاء'),
                                 style: TextStyle(color: Color(0xFF4CAF50)),
                               ),
                             ),
@@ -615,14 +663,14 @@ class _SettingPageState extends State<SettingPage> {
                                       // Validation
                                       if (currentPasswordController.text.isEmpty) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Please enter current password')),
+                                          SnackBar(content: Text(_t('Please enter current password', 'يرجى إدخال كلمة المرور الحالية'))),
                                         );
                                         return;
                                       }
                                       
                                       if (newPasswordController.text.isEmpty) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Please enter new password')),
+                                          SnackBar(content: Text(_t('Please enter new password', 'يرجى إدخال كلمة المرور الجديدة'))),
                                         );
                                         return;
                                       }
@@ -639,7 +687,7 @@ class _SettingPageState extends State<SettingPage> {
                                       
                                       if (newPasswordController.text != confirmPasswordController.text) {
                                         ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Passwords do not match')),
+                                          SnackBar(content: Text(_t('Passwords do not match', 'كلمتا المرور غير متطابقتين'))),
                                         );
                                         return;
                                       }
@@ -658,8 +706,8 @@ class _SettingPageState extends State<SettingPage> {
                                         if (mounted) {
                                           Navigator.pop(dialogContext);
                                           ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Password changed successfully!'),
+                                            SnackBar(
+                                              content: Text(_t('Password changed successfully!', 'تم تغيير كلمة المرور بنجاح!')),
                                               backgroundColor: Colors.green,
                                             ),
                                           );
@@ -668,7 +716,7 @@ class _SettingPageState extends State<SettingPage> {
                                         if (mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
-                                              content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'),
+                                              content: Text('${_t('Failed', 'فشل')}: ${e.toString().replaceAll('Exception: ', '')}'),
                                               backgroundColor: Colors.red,
                                             ),
                                           );
@@ -697,8 +745,8 @@ class _SettingPageState extends State<SettingPage> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Text(
-                                      'Update',
+                                    : Text(
+                                      _t('Update', 'تحديث'),
                                       style: TextStyle(color: Colors.white),
                                     ),
                             ),
@@ -717,6 +765,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   Widget _buildPreferencesSection() {
+    final isAr = AppI18n.isArabic(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -735,9 +784,9 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
-              'Preferences',
-              style: TextStyle(
+            Text(
+              isAr ? 'التفضيلات' : 'Preferences',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1A1A1A),
@@ -754,21 +803,21 @@ class _SettingPageState extends State<SettingPage> {
           child: Column(
             children: [
               _buildSettingItem(
-                title: 'Notifications',
+                title: isAr ? 'الإشعارات' : 'Notifications',
                 onTap: () {
                   // Navigate to notifications page
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItem(
-                title: 'Language',
+                title: isAr ? 'اللغة' : 'Language',
                 onTap: () {
-                  // Navigate to language page
+                  _showLanguageDialog();
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItemWithSwitch(
-                title: 'Dark Mode',
+                title: isAr ? 'الوضع الداكن' : 'Dark Mode',
                 value: _darkMode,
                 onChanged: (value) {
                   setState(() {
@@ -780,11 +829,11 @@ class _SettingPageState extends State<SettingPage> {
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItemWithSwitch(
                 title: _isUpdatingLocationSharing
-                    ? 'Location Sharing (updating...)'
-                    : 'Location Sharing',
+                    ? (isAr ? 'مشاركة الموقع (جاري التحديث...)' : 'Location Sharing (updating...)')
+                    : (isAr ? 'مشاركة الموقع' : 'Location Sharing'),
                 subtitle: _locationSharing
-                    ? 'Family can see your live location'
-                    : 'Hidden from family map',
+                    ? (isAr ? 'يمكن للعائلة رؤية موقعك المباشر' : 'Family can see your live location')
+                    : (isAr ? 'مخفي عن خريطة العائلة' : 'Hidden from family map'),
                 value: _locationSharing,
                 onChanged: _toggleLocationSharingFromSettings,
               ),
@@ -796,6 +845,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   Widget _buildSupportSection() {
+    final isAr = AppI18n.isArabic(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -814,8 +864,8 @@ class _SettingPageState extends State<SettingPage> {
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
-              'Support',
+            Text(
+              isAr ? 'الدعم' : 'Support',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -833,21 +883,21 @@ class _SettingPageState extends State<SettingPage> {
           child: Column(
             children: [
               _buildSettingItem(
-                title: 'Help Center',
+                title: isAr ? 'مركز المساعدة' : 'Help Center',
                 onTap: () {
                   // Navigate to help center page
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItem(
-                title: 'Contact Us',
+                title: isAr ? 'تواصل معنا' : 'Contact Us',
                 onTap: () {
                   // Navigate to contact us page
                 },
               ),
               const Divider(height: 1, thickness: 1, color: Color(0xFFD4E7D7)),
               _buildSettingItem(
-                title: 'About Family Hub',
+                title: isAr ? 'عن فاميلي هب' : 'About Family Hub',
                 onTap: () {
                   // Navigate to about page
                 },
@@ -943,6 +993,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   Widget _buildLogoutButton() {
+    final isAr = AppI18n.isArabic(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: SizedBox(
@@ -954,26 +1005,28 @@ class _SettingPageState extends State<SettingPage> {
               context: context,
               builder: (dialogContext) {
                 return AlertDialog(
-                  title: const Text('Logout options'),
-                  content: const Text('Choose whether to logout this profile only or all saved profiles.'),
+                  title: Text(isAr ? 'خيارات تسجيل الخروج' : 'Logout options'),
+                  content: Text(isAr
+                      ? 'اختر تسجيل خروج الحساب الحالي فقط أو كل الحسابات المحفوظة.'
+                      : 'Choose whether to logout this profile only or all saved profiles.'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: const Text('Cancel'),
+                      child: Text(isAr ? 'إلغاء' : 'Cancel'),
                     ),
                     TextButton(
                       onPressed: () async {
                         Navigator.of(dialogContext).pop();
                         await _handleLogoutCurrent();
                       },
-                      child: const Text('Logout current'),
+                      child: Text(isAr ? 'خروج الحساب الحالي' : 'Logout current'),
                     ),
                     TextButton(
                       onPressed: () async {
                         Navigator.of(dialogContext).pop();
                         await _handleLogoutAll();
                       },
-                      child: const Text('Logout all', style: TextStyle(color: Colors.red)),
+                      child: Text(isAr ? 'خروج كل الحسابات' : 'Logout all', style: const TextStyle(color: Colors.red)),
                     ),
                   ],
                 );
@@ -988,8 +1041,8 @@ class _SettingPageState extends State<SettingPage> {
             ),
             elevation: 2,
           ),
-          child: const Text(
-            'Logout Options',
+          child: Text(
+            isAr ? 'خيارات تسجيل الخروج' : 'Logout Options',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -1001,6 +1054,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 
   void _showDeactivateDialog() {
+    final isAr = AppI18n.isArabic(context);
     final emailController = TextEditingController();
     final passwordController = TextEditingController();
     bool isLoading = false;
@@ -1014,16 +1068,18 @@ class _SettingPageState extends State<SettingPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
               ),
-              title: const Text(
-                'Deactivate Account',
+              title: Text(
+                isAr ? 'تعطيل الحساب' : 'Deactivate Account',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'To deactivate your account, please confirm your email and password. This action will prevent all family members from logging in.',
+                  Text(
+                    isAr
+                        ? 'لتعطيل الحساب، يرجى تأكيد البريد الإلكتروني وكلمة المرور. هذا الإجراء سيمنع جميع أفراد العائلة من تسجيل الدخول.'
+                        : 'To deactivate your account, please confirm your email and password. This action will prevent all family members from logging in.',
                     style: TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 20),
