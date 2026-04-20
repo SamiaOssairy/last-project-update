@@ -27,10 +27,6 @@ import 'package:flutter/material.dart';
 /// ```
 
 class Responsive {
-  // Design reference size (iPhone standard)
-  static const double _designWidth = 375;
-  static const double _designHeight = 812;
-  
   // Max content width for desktop (like Talabat/Instashop login forms)
   static const double maxContentWidth = 480;
   // Max content width for wider layouts (dashboards, grids)

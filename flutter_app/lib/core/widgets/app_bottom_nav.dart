@@ -3,13 +3,14 @@ import '../localization/app_i18n.dart';
 
 /// Shared bottom navigation bar used across all main screens.
 ///
-/// Pass the current [selectedIndex] (0-4) to highlight the active tab.
+/// Pass the current [selectedIndex] (0-5) to highlight the active tab.
 /// The navigation targets are:
 ///   0 → /home
 ///   1 → /rewards
 ///   2 → /food-hub
-///   3 → /family-map
-///   4 → /settings
+///   3 → /budget
+///   4 → /family-map
+///   5 → /settings
 class AppBottomNav extends StatelessWidget {
   final int selectedIndex;
   const AppBottomNav({super.key, this.selectedIndex = 0});
@@ -32,6 +33,8 @@ class AppBottomNav extends StatelessWidget {
         BottomNavigationBarItem(
           icon: const Icon(Icons.restaurant_outlined), label: isAr ? 'الطعام' : 'Food Hub'),
         BottomNavigationBarItem(
+          icon: const Icon(Icons.account_balance_wallet_outlined), label: isAr ? 'الميزانية' : 'Budget'),
+        BottomNavigationBarItem(
           icon: const Icon(Icons.map_outlined), label: isAr ? 'الخريطة' : 'Map'),
         BottomNavigationBarItem(
           icon: const Icon(Icons.settings_outlined), label: isAr ? 'الإعدادات' : 'Settings'),
@@ -52,9 +55,12 @@ class AppBottomNav extends StatelessWidget {
         Navigator.pushReplacementNamed(context, '/food-hub');
         break;
       case 3:
-        Navigator.pushReplacementNamed(context, '/family-map');
+        Navigator.pushReplacementNamed(context, '/budget');
         break;
       case 4:
+        Navigator.pushReplacementNamed(context, '/family-map');
+        break;
+      case 5:
         Navigator.pushReplacementNamed(context, '/settings');
         break;
     }

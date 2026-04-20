@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../core/services/api_service.dart';
 
 // --- Data Models ---
 class Announcement {
@@ -26,8 +25,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  final ApiService _apiService = ApiService();
-  
   // --- Controllers for Input Fields ---
   final _annTitleCtrl = TextEditingController();
   final _annContentCtrl = TextEditingController();

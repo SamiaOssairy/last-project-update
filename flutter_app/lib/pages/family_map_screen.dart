@@ -935,7 +935,6 @@ class _FamilyMapScreenState extends State<FamilyMapScreen> {
   Widget _buildMemberChip(int i) {
     final loc = _familyLocations[i];
     final name = loc['member_username'] ?? 'Unknown';
-    final type = loc['member_type'] ?? '';
     final color = _colorForIndex(i);
     final isOnline = _isMemberOnline(loc);
     final isSelected = _selectedMember != null &&

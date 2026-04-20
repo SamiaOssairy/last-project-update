@@ -113,23 +113,6 @@ class _TasksScreenState extends State<TasksScreen> with SingleTickerProviderStat
     }
   }
 
-  Future<void> _markTaskComplete(TaskItem task) async {
-    try {
-      await _apiService.completeTask(task.id);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Task "${task.title}" marked as complete!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _loadTasks(); // Refresh
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
   @override
   void dispose() {
     _tabController.dispose();

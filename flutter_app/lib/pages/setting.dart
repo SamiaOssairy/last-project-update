@@ -22,7 +22,6 @@ class _SettingPageState extends State<SettingPage> {
   String _t(String en, String ar) => AppI18n.t(context, en, ar);
   
   String _familyTitle = '';
-  String _userName = '';
   List<Map<String, dynamic>> _savedProfiles = [];
   String _activeProfileKey = '';
   bool _darkMode = false;
@@ -40,11 +39,9 @@ class _SettingPageState extends State<SettingPage> {
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    final userName = prefs.getString('username') ?? '';
     final familyTitle = prefs.getString('familyTitle') ?? '';
     
     setState(() {
-      _userName = userName;
       _familyTitle = familyTitle;
       _activeProfileKey = prefs.getString('activeProfileKey') ?? '';
       _languageCode = prefs.getString('app_locale') ?? 'en';
@@ -389,7 +386,7 @@ class _SettingPageState extends State<SettingPage> {
           ),
           child: ClipOval(
             child: Image.asset(
-              'assets/avatar.png',
+              'assets/parent_icon.png',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return const Icon(

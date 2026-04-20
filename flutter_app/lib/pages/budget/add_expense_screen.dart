@@ -1,0 +1,290 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:app_frontend/pages/budget/budget_provider.dart';
+
+class AddExpenseScreen extends StatefulWidget {
+  final Map<String, dynamic> budget;
+  const AddExpenseScreen({super.key, required this.budget});
+  @override
+  State<AddExpenseScreen> createState() => _AddExpenseScreenState();
+}
+
+class _AddExpenseScreenState extends State<AddExpenseScreen> {
+  final _amountCtrl = TextEditingController();
+  final _descCtrl = TextEditingController();
+  String? _selectedCategoryId;
+  DateTime _expenseDate = DateTime.now();
+  bool _isEmergency = false;
+  bool _isLoading = false;
+  XFile? _receiptImage;
+  String? _receiptPhotoUrl;
+
+  List<Map<String, dynamic>> get _categories =>
+      List<Map<String, dynamic>>.from(widget.budget['categories'] ?? []);
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (img != null) {
+      setState(() {
+        _receiptImage = img;
+        // In production: upload to cloud storage and set _receiptPhotoUrl
+        // For now we use the local path as URL placeholder
+        _receiptPhotoUrl = img.path;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    final amount = double.tryParse(_amountCtrl.text.trim());
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid amount')));
+      return;
+    }
+    if (_selectedCategoryId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a category')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final provider = context.read<FamilyBudgetProvider>();
+      await provider.createExpense({
+        'budget_id': widget.budget['_id'],
+        'budget_category_id': _selectedCategoryId,
+        'amount': amount,
+        'expense_date': _expenseDate.toIso8601String(),
+        'description': _descCtrl.text.trim(),
+        'is_emergency': _isEmergency,
+        'receipt_photo_url': _receiptPhotoUrl,
+        'source_module': 'manual',
+      });
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Expense added!'),
+              backgroundColor: Color(0xFF388E3C)));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.red));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final emergencyTotal = (widget.budget['emergency_fund_amount'] ?? 0).toDouble();
+    final emergencySpent = (widget.budget['emergency_fund_spent'] ?? 0).toDouble();
+    final emergencyRemaining = emergencyTotal - emergencySpent;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF388E3C),
+        foregroundColor: Colors.white,
+        title: const Text('Add Expense'),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 16, right: 16, top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Amount
+          _sectionTitle('Amount'),
+          TextField(
+            controller: _amountCtrl,
+            keyboardType: TextInputType.number,
+            decoration: _inputDeco('Enter amount', Icons.attach_money),
+          ),
+          const SizedBox(height: 16),
+
+          // Category
+          _sectionTitle('Category'),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                hint: const Text('Select category'),
+                value: _selectedCategoryId,
+                items: _categories.map((cat) {
+                  final color = _parseColor(cat['color'] ?? '#4CAF50');
+                  return DropdownMenuItem<String>(
+                    value: cat['_id'],
+                    child: Row(children: [
+                      Container(width: 14, height: 14,
+                          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+                      const SizedBox(width: 10),
+                      Text(cat['name'] ?? ''),
+                    ]),
+                  );
+                }).toList(),
+                onChanged: (v) => setState(() => _selectedCategoryId = v),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Date
+          _sectionTitle('Date'),
+          GestureDetector(
+            onTap: () async {
+              final d = await showDatePicker(
+                context: context,
+                initialDate: _expenseDate,
+                firstDate: DateTime(2020),
+                lastDate: DateTime.now(),
+              );
+              if (d != null) setState(() => _expenseDate = d);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(children: [
+                const Icon(Icons.calendar_today, color: Color(0xFF388E3C), size: 20),
+                const SizedBox(width: 10),
+                Text(DateFormat('dd/MM/yyyy').format(_expenseDate)),
+                const Spacer(),
+                const Icon(Icons.chevron_right, color: Colors.grey),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Description
+          _sectionTitle('Description (optional)'),
+          TextField(
+            controller: _descCtrl,
+            maxLines: 2,
+            decoration: _inputDeco('Add a note...', Icons.notes),
+          ),
+          const SizedBox(height: 16),
+
+          // Receipt photo (BR5, UR1)
+          _sectionTitle('Receipt Photo (optional)'),
+          GestureDetector(
+            onTap: _pickImage,
+            child: Container(
+              height: _receiptImage != null ? 160 : 80,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(
+                    color: _receiptImage != null
+                        ? const Color(0xFF388E3C)
+                        : Colors.grey.shade300,
+                    style: BorderStyle.solid),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: _receiptImage != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(File(_receiptImage!.path), fit: BoxFit.cover,
+                          width: double.infinity),
+                    )
+                  : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.camera_alt_outlined, color: Colors.grey, size: 30),
+                      SizedBox(height: 4),
+                      Text('Tap to add receipt photo',
+                          style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    ]),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Emergency fund toggle (BR6)
+          Container(
+            decoration: BoxDecoration(
+              color: _isEmergency
+                  ? Colors.orange.shade50
+                  : Colors.white,
+              border: Border.all(
+                  color: _isEmergency
+                      ? Colors.orange.shade300
+                      : Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: SwitchListTile(
+              title: const Text('Use Emergency Fund',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                _isEmergency
+                    ? 'Remaining: \$${emergencyRemaining.toStringAsFixed(2)}'
+                    : 'Default: deduct from category budget',
+                style: const TextStyle(fontSize: 12),
+              ),
+              value: _isEmergency,
+              activeColor: Colors.orange,
+              onChanged: (v) => setState(() => _isEmergency = v),
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF388E3C),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                  : const Text('Save Expense',
+                      style: TextStyle(fontSize: 16, color: Colors.white,
+                          fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String t) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(t, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+  );
+
+  InputDecoration _inputDeco(String hint, IconData icon) => InputDecoration(
+    hintText: hint,
+    prefixIcon: Icon(icon, color: const Color(0xFF388E3C)),
+    filled: true, fillColor: Colors.white,
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey.shade300)),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey.shade300)),
+  );
+
+  Color _parseColor(String hex) {
+    try { return Color(int.parse(hex.replaceFirst('#', '0xFF'))); }
+    catch (_) { return const Color(0xFF4CAF50); }
+  }
+}

@@ -641,17 +641,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         (item['item_name'] ?? '').toString().toLowerCase().trim() == lower);
   }
 
-  // Get inventory item details for an ingredient name (if available)
-  Map<String, dynamic>? _getInventoryMatch(String ingredientName) {
-    final lower = ingredientName.toLowerCase().trim();
-    try {
-      return _inventoryItems.firstWhere((item) =>
-          (item['item_name'] ?? '').toString().toLowerCase().trim() == lower);
-    } catch (_) {
-      return null;
-    }
-  }
-
   void _showAddIngredientDialog() {
     final nameCtrl = TextEditingController();
     String? selectedUnitId;

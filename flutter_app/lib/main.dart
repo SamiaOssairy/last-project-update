@@ -26,6 +26,9 @@ import 'pages/grocery_list_detail_screen.dart';
 import 'pages/family_map_screen.dart';
 import 'core/services/api_service.dart';
 import 'core/services/locale_service.dart';
+import 'package:provider/provider.dart';
+import 'package:app_frontend/pages/budget/budget_provider.dart';
+import 'package:app_frontend/pages/budget/budget_dashboard_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,55 +41,65 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<Locale?>(
-      valueListenable: LocaleService.localeNotifier,
-      builder: (context, locale, _) {
-        return MaterialApp(
-          title: 'Family Hub',
-          debugShowCheckedModeBanner: false,
-          locale: locale,
-          supportedLocales: const [
-            Locale('en'),
-            Locale('ar'),
-          ],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          theme: ThemeData(
-            primarySwatch: Colors.green,
-            useMaterial3: true,
-          ),
-          home: const AuthBootstrapScreen(),
-          routes: {
-            '/splash': (context) => const SplashScreen(),
-            '/onboarding': (context) => const OnboardingScreen(),
-            '/login': (context) => const LoginPage(),
-            '/home': (context) => const HomePage(),
-            '/settings': (context) => const SettingPage(),
-            '/dashboard': (context) => const DashboardScreen(),
-            '/tasks': (context) => const TasksScreen(),
-            '/status': (context) => const StatusScreen(),
-            '/rewards': (context) => const RewardsScreen(),
-            '/redeem': (context) => const RedeemScreen(),
-            '/task-management': (context) => const TaskManagementScreen(),
-            '/family-points': (context) => const FamilyPointsScreen(),
-            '/inventory': (context) => const InventoryScreen(),
-            '/inventory-categories': (context) => const InventoryCategoriesScreen(),
-            '/meals': (context) => const MealsScreen(),
-            '/food-hub': (context) => const FoodHubScreen(),
-            '/recipes': (context) => const RecipesScreen(),
-            '/leftovers': (context) => const LeftoversScreen(),
-            '/meal-suggestions': (context) => const MealSuggestionsScreen(),
-            '/receipts': (context) => const ReceiptsScreen(),
-            '/inventory-alerts': (context) => const InventoryAlertsScreen(),
-            '/groceries': (context) => const GroceriesScreen(),
-            '/grocery-list-detail': (context) => const GroceryListDetailScreen(),
-            '/family-map': (context) => const FamilyMapScreen(),
-          },
-        );
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<FamilyBudgetProvider>(create: (_) {
+          final provider = FamilyBudgetProvider();
+          provider.init();
+          return provider;
+        }),
+      ],
+      child: ValueListenableBuilder<Locale?>(
+        valueListenable: LocaleService.localeNotifier,
+        builder: (context, locale, _) {
+          return MaterialApp(
+            title: 'Family Hub',
+            debugShowCheckedModeBanner: false,
+            locale: locale,
+            supportedLocales: const [
+              Locale('en'),
+              Locale('ar'),
+            ],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            theme: ThemeData(
+              primarySwatch: Colors.green,
+              useMaterial3: true,
+            ),
+            home: const AuthBootstrapScreen(),
+            routes: {
+              '/splash': (context) => const SplashScreen(),
+              '/onboarding': (context) => const OnboardingScreen(),
+              '/login': (context) => const LoginPage(),
+              '/home': (context) => const HomePage(),
+              '/settings': (context) => const SettingPage(),
+              '/dashboard': (context) => const DashboardScreen(),
+              '/tasks': (context) => const TasksScreen(),
+              '/status': (context) => const StatusScreen(),
+              '/rewards': (context) => const RewardsScreen(),
+              '/redeem': (context) => const RedeemScreen(),
+              '/task-management': (context) => const TaskManagementScreen(),
+              '/family-points': (context) => const FamilyPointsScreen(),
+              '/inventory': (context) => const InventoryScreen(),
+              '/inventory-categories': (context) => const InventoryCategoriesScreen(),
+              '/meals': (context) => const MealsScreen(),
+              '/food-hub': (context) => const FoodHubScreen(),
+              '/recipes': (context) => const RecipesScreen(),
+              '/leftovers': (context) => const LeftoversScreen(),
+              '/meal-suggestions': (context) => const MealSuggestionsScreen(),
+              '/receipts': (context) => const ReceiptsScreen(),
+              '/inventory-alerts': (context) => const InventoryAlertsScreen(),
+              '/groceries': (context) => const GroceriesScreen(),
+              '/grocery-list-detail': (context) => const GroceryListDetailScreen(),
+              '/budget': (context) => const BudgetDashboardScreen(),
+              '/family-map': (context) => const FamilyMapScreen(),
+            },
+          );
+        },
+      ),
     );
   }
 }
