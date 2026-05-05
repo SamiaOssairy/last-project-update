@@ -237,6 +237,49 @@ async function seedData() {
       }
     }
 
+    // 9b. Add more inventory items for testing
+    const extraItems = [
+      {
+        item_name: "Eggs",
+        inventory_id: seededInventories["Main Kitchen Fridge"],
+        item_category: seededInvCats["Dairy"],
+        quantity: 12,
+        unit_id: seededUnits["Piece"],
+        threshold_quantity: 6,
+        expiry_date: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000)
+      },
+      {
+        item_name: "Bread",
+        inventory_id: seededInventories["Pantry"],
+        item_category: seededInvCats["Grains"],
+        quantity: 2,
+        unit_id: seededUnits["Piece"],
+        threshold_quantity: 1,
+        expiry_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+      },
+      {
+        item_name: "Cheese",
+        inventory_id: seededInventories["Main Kitchen Fridge"],
+        item_category: seededInvCats["Dairy"],
+        quantity: 1,
+        unit_id: seededUnits["kg"],
+        threshold_quantity: 0.2,
+        expiry_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      }
+    ];
+    for (const item of extraItems) {
+      const existing = await InventoryItem.findOne({ 
+        item_name: item.item_name, 
+        inventory_id: item.inventory_id 
+      });
+      if (!existing) {
+        await InventoryItem.create(item);
+        console.log(`Created Extra Inventory Item: ${item.item_name}`);
+      } else {
+        console.log(`Extra Inventory Item already exists: ${item.item_name}`);
+      }
+    }
+
     // 10. Create Default Budgets
     const budgets = [
       { category_name: "Groceries", budget_amount: 500, spent_amount: 150, family_id: family._id },
@@ -341,6 +384,49 @@ async function seedData() {
       } else {
         console.log(`Expense already exists: ${ex.title}`);
       }
+    }
+
+    // 14. Create Meals for the family
+    const Meal = require("../models/mealModel");
+    const member = await Member.findOne({ mail: FAMILY_EMAIL, family_id: family._id });
+    if (member) {
+      const meals = [
+        {
+          family_id: family._id,
+          meal_name: "Omelette",
+          meal_date: new Date(),
+          meal_type: "Breakfast",
+          recipe_id: null,
+          created_by: member._id
+        },
+        {
+          family_id: family._id,
+          meal_name: "Cheese Sandwich",
+          meal_date: new Date(),
+          meal_type: "Lunch",
+          recipe_id: null,
+          created_by: member._id
+        },
+        {
+          family_id: family._id,
+          meal_name: "Tomato Rice",
+          meal_date: new Date(),
+          meal_type: "Dinner",
+          recipe_id: null,
+          created_by: member._id
+        }
+      ];
+      for (const meal of meals) {
+        const existing = await Meal.findOne({ meal_name: meal.meal_name, meal_date: meal.meal_date, family_id: family._id });
+        if (!existing) {
+          await Meal.create(meal);
+          console.log(`Created Meal: ${meal.meal_name}`);
+        } else {
+          console.log(`Meal already exists: ${meal.meal_name}`);
+        }
+      }
+    } else {
+      console.log("No member found to assign meals.");
     }
 
     console.log("Seeding completed successfully!");

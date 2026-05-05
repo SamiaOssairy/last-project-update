@@ -17,11 +17,15 @@ const {
 	getCombinedAnalytics,
 	createPeriodBudget,
 	getPeriodBudgets,
+	getInventoryBudgetSummary,
 	setPeriodBudgetAllocations,
 	recordAllocationWithdrawal,
 	getPeriodBudgetDetails,
 	setPeriodMemberAllowances,
 	getPeriodMemberAllowances,
+	getFutureEvents,
+	updateFutureEvent,
+	deleteFutureEvent,
 } = require('../controllers/BudgetController');
 
 const budgetRouter = express.Router();
@@ -38,6 +42,9 @@ budgetRouter.get('/member/:memberId/balance-details', getMemberBalanceWalletDeta
 budgetRouter.get('/expenses/redeems', getRedeemExpenses);
 budgetRouter.post('/expenses/new', createExpense);
 budgetRouter.post('/future-events', restrictTo('Parent'), createEventWithRewards);
+budgetRouter.get('/future-events/all', getFutureEvents);
+budgetRouter.put('/future-events/:eventId', restrictTo('Parent'), updateFutureEvent);
+budgetRouter.delete('/future-events/:eventId', restrictTo('Parent'), deleteFutureEvent);
 budgetRouter.post('/events/:eventId/contribute', contributeToEvent);
 budgetRouter.get('/events/:eventId/funding', getEventFundingStatus);
 budgetRouter.patch('/events/:eventId/mark-paid', restrictTo('Parent'), markContributionPaid);
@@ -46,6 +53,7 @@ budgetRouter.patch('/events/:eventId/funding-goal', restrictTo('Parent'), adjust
 // Flexible period budgeting (weekly/monthly/yearly/custom)
 budgetRouter.post('/periods', restrictTo('Parent'), createPeriodBudget);
 budgetRouter.get('/periods', restrictTo('Parent'), getPeriodBudgets);
+budgetRouter.get('/inventory-summary', getInventoryBudgetSummary);
 budgetRouter.get('/periods/:periodBudgetId', restrictTo('Parent'), getPeriodBudgetDetails);
 budgetRouter.put('/periods/:periodBudgetId/allocations', restrictTo('Parent'), setPeriodBudgetAllocations);
 budgetRouter.put('/periods/:periodBudgetId/allowances', restrictTo('Parent'), setPeriodMemberAllowances);

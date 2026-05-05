@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:app_frontend/pages/budget/budget_provider.dart';
 
 class BudgetAnalyticsScreen extends StatefulWidget {
@@ -18,7 +19,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FamilyBudgetProvider>().loadAnalytics(widget.budgetId);
     });
@@ -55,7 +56,11 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             indicatorColor: Colors.white,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
-            tabs: const [Tab(text: 'Pie Chart'), Tab(text: 'Trend')],
+            tabs: const [
+              Tab(text: 'Pie Chart'),
+              Tab(text: 'Trend'),
+              Tab(text: 'Expenses'),
+            ],
           ),
         ),
         body: provider.isLoading || analytics == null
@@ -66,6 +71,7 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
                 children: [
                   _buildPieTab(analytics),
                   _buildTrendTab(analytics),
+                  _buildExpensesTab(provider),
                 ],
               ),
       );
@@ -302,6 +308,86 @@ class _BudgetAnalyticsScreenState extends State<BudgetAnalyticsScreen>
             style: TextStyle(
                 fontSize: 18, fontWeight: FontWeight.bold, color: color)),
       ],
+    );
+  }
+
+  Widget _buildExpensesTab(FamilyBudgetProvider provider) {
+    final expenses = provider.expenses;
+    if (expenses.isEmpty) {
+      return const Center(child: Text('No expenses found for this budget period'));
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: expenses.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final expense = expenses[index];
+        final amount = (expense['amount'] ?? 0).toDouble();
+        final title = (expense['title'] ?? expense['category'] ?? 'Expense').toString();
+        final category = (expense['category'] ?? 'Uncategorized').toString();
+        final memberMail = (expense['member_mail'] ?? '').toString();
+        final source = (expense['expense_source'] ?? 'budget').toString();
+        final description = (expense['description'] ?? '').toString();
+        final dateValue = DateTime.tryParse((expense['expense_date'] ?? '').toString());
+        final formattedDate = dateValue != null ? DateFormat('dd MMM yyyy, hh:mm a').format(dateValue) : 'Unknown date';
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE0E0E0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '\$${amount.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      color: Color(0xFFD32F2F),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$category • $source',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              if (memberMail.isNotEmpty)
+                Text(
+                  memberMail,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                ),
+              ],
+              const SizedBox(height: 4),
+              Text(
+                formattedDate,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -19,6 +19,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
   List<dynamic> _categories = [];
   List<dynamic> _inventories = [];
   List<dynamic> _units = [];
+  List<dynamic> _budgetPeriods = [];
+  Map<String, dynamic>? _inventoryBudgetSummary;
+  String? _selectedBudgetPeriodId;
   String _familyTitle = '';
   bool _loading = true;
   String? _selectedCategoryId;
@@ -43,22 +46,47 @@ class _InventoryScreenState extends State<InventoryScreen> {
         _apiService.getAllInventoryCategories(tree: false),
         _apiService.getAllInventories(),
         _apiService.getAllUnits(),
+        _apiService.getInventoryBudgetSummary(includePeriods: true),
       ]);
       int alertCount = 0;
       try {
         alertCount = await _apiService.getUnreadAlertCount();
       } catch (_) {}
       setState(() {
-        _items = results[0];
-        _categories = results[1];
-        _inventories = results[2];
-        _units = results[3];
+        _items = List<dynamic>.from(results[0] as List);
+        _categories = List<dynamic>.from(results[1] as List);
+        _inventories = List<dynamic>.from(results[2] as List);
+        _units = List<dynamic>.from(results[3] as List);
+        _inventoryBudgetSummary = results[4] as Map<String, dynamic>?;
+        _budgetPeriods = List<dynamic>.from(
+          (_inventoryBudgetSummary?['data']?['available_period_budgets'] as List?) ?? const [],
+        );
+        _selectedBudgetPeriodId = (_inventoryBudgetSummary?['data']?['selected_period_budget_id'])?.toString();
         _unreadAlerts = alertCount;
         _loading = false;
       });
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) showErrorSnack(context, 'Error loading inventory: $e');
+    }
+  }
+
+  Future<void> _loadInventoryBudgetSummary({String? periodBudgetId}) async {
+    try {
+      final summary = await _apiService.getInventoryBudgetSummary(
+        includePeriods: true,
+        periodBudgetId: periodBudgetId,
+      );
+      if (!mounted) return;
+      setState(() {
+        _inventoryBudgetSummary = summary;
+        _budgetPeriods = List<dynamic>.from(
+          (summary['data']?['available_period_budgets'] as List?) ?? const [],
+        );
+        _selectedBudgetPeriodId = (summary['data']?['selected_period_budget_id'])?.toString();
+      });
+    } catch (_) {
+      // Keep inventory usable even when budget summary fails.
     }
   }
 
@@ -139,6 +167,20 @@ class _InventoryScreenState extends State<InventoryScreen> {
       if (cat is Map) return cat['_id'] == catId;
       return cat == catId;
     }).length;
+  }
+
+  Map<String, dynamic>? _getBudgetCategorySummary(String categoryId) {
+    final categories = (_inventoryBudgetSummary?['data']?['categories'] as List?) ??
+        (_inventoryBudgetSummary?['categories'] as List?) ??
+        const [];
+    for (final entry in categories) {
+      if (entry is! Map) continue;
+      final entryId = entry['inventory_category_id']?.toString();
+      if (entryId == categoryId) {
+        return Map<String, dynamic>.from(entry);
+      }
+    }
+    return null;
   }
 
   // ── Unit dialogs ─────────────────────────────────────────────
@@ -1115,6 +1157,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     const SizedBox(height: 8),
                     _buildCategoryFilter(),
                     const SizedBox(height: 4),
+                    _buildInventoryBudgetSummary(),
+                    const SizedBox(height: 4),
                     _buildSummaryRow(),
                     const SizedBox(height: 4),
                     Expanded(child: _buildItemList()),
@@ -1631,6 +1675,169 @@ class _InventoryScreenState extends State<InventoryScreen> {
           });
         },
       ),
+    );
+  }
+
+  Widget _buildInventoryBudgetSummary() {
+    final periodBudget = (_inventoryBudgetSummary?['data']?['period_budget'] as Map?) ??
+        (_inventoryBudgetSummary?['period_budget'] as Map?);
+    final categories = (_inventoryBudgetSummary?['data']?['categories'] as List?) ??
+        (_inventoryBudgetSummary?['categories'] as List?) ??
+        const [];
+    if (periodBudget == null || categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final title = (periodBudget['title'] ?? 'Active budget').toString();
+    final periodSubtitle = '${DateFormat('dd MMM').format(DateTime.tryParse((periodBudget['start_date'] ?? '').toString()) ?? DateTime.now())} - '
+      '${DateFormat('dd MMM').format(DateTime.tryParse((periodBudget['end_date'] ?? '').toString()) ?? DateTime.now())}';
+    final totalAmount = (periodBudget['total_amount'] ?? 0).toString();
+    final remainingAmount = (periodBudget['remaining_amount'] ?? 0).toString();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.white, Appcolor.foodPrimary.withOpacity(0.06)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Appcolor.foodPrimary.withOpacity(0.12)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Appcolor.foodPrimary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.savings_outlined, color: Appcolor.foodPrimary, size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Appcolor.textDark)),
+                      Text('Source: $periodSubtitle',
+                          style: GoogleFonts.poppins(
+                              fontSize: 11, color: Appcolor.textLight)),
+                    ],
+                  ),
+                ),
+                Text('$remainingAmount / $totalAmount',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Appcolor.foodPrimary)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_budgetPeriods.length > 1) ...[
+              SizedBox(
+                height: 34,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _budgetPeriods.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final period = _budgetPeriods[index] as Map;
+                    final periodId = (period['_id'] ?? '').toString();
+                    final isSelected = periodId == _selectedBudgetPeriodId;
+                    final chipLabel = (period['title'] ?? 'Budget').toString();
+                    return ChoiceChip(
+                      label: Text(chipLabel, overflow: TextOverflow.ellipsis),
+                      selected: isSelected,
+                      onSelected: (_) => _loadInventoryBudgetSummary(periodBudgetId: periodId),
+                      selectedColor: Appcolor.foodPrimary.withOpacity(0.15),
+                      labelStyle: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: isSelected ? Appcolor.foodPrimary : Appcolor.textDark,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            SizedBox(
+              height: 132,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final entry = categories[index] as Map;
+                  final allocated = (entry['allocated_amount'] ?? 0).toString();
+                  final spent = (entry['spent_amount'] ?? 0).toString();
+                  final remaining = (entry['remaining_amount'] ?? 0).toString();
+                  final categoryTitle = (entry['inventory_category_title'] ?? 'Category').toString();
+                  return Container(
+                    width: 168,
+                    padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(categoryTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Appcolor.textDark)),
+                        const SizedBox(height: 4),
+                        _budgetStatLine('Allocated', allocated),
+                        _budgetStatLine('Spent', spent),
+                        _budgetStatLine('Remaining', remaining),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _budgetStatLine(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: GoogleFonts.poppins(
+                fontSize: 9, color: Appcolor.textLight)),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(value,
+              maxLines: 1,
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: Appcolor.textDark)),
+        ),
+      ],
     );
   }
 

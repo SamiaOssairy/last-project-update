@@ -1302,6 +1302,29 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getInventoryBudgetSummary({
+    String? activeOn,
+    String? periodBudgetId,
+    bool includePeriods = false,
+  }) async {
+    final headers = await _getHeaders();
+    final uri = Uri.parse('$baseUrl/budgets/inventory-summary').replace(
+      queryParameters: {
+        if (activeOn != null && activeOn.isNotEmpty) 'active_on': activeOn,
+        if (periodBudgetId != null && periodBudgetId.isNotEmpty) 'period_budget_id': periodBudgetId,
+        if (includePeriods) 'include_periods': 'true',
+      },
+    );
+    final response = await http.get(uri, headers: headers);
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    final errorData = jsonDecode(response.body);
+    throw Exception(errorData['message'] ?? 'Failed to load inventory budget summary');
+  }
+
   // Create inventory
   Future<Map<String, dynamic>> createInventory(String title, {String? type}) async {
     final headers = await _getHeaders();
@@ -2466,6 +2489,50 @@ class ApiService {
     if (response.statusCode != 200 && response.statusCode != 204) {
       final err = jsonDecode(response.body);
       throw Exception(err['message'] ?? 'Failed to delete shared location');
+    }
+  }
+
+  // ==================== PLANNING AI APIs ====================
+
+  Future<String> sendPlanningMessage(String message) async {
+    final headers = await _getHeaders();
+    final response = await http.post(
+      Uri.parse('$baseUrl/planning/chat'),
+      headers: headers,
+      body: jsonEncode({'message': message}),
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['data']['response'] ?? '';
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to get AI response');
+  }
+
+  Future<List<Map<String, dynamic>>> getPlanningHistory() async {
+    final headers = await _getHeaders();
+    final response = await http.get(
+      Uri.parse('$baseUrl/planning/history'),
+      headers: headers,
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final messages = data['data']['messages'] as List? ?? [];
+      return messages.map((m) => Map<String, dynamic>.from(m as Map)).toList();
+    }
+    final err = jsonDecode(response.body);
+    throw Exception(err['message'] ?? 'Failed to load chat history');
+  }
+
+  Future<void> clearPlanningHistory() async {
+    final headers = await _getHeaders();
+    final response = await http.delete(
+      Uri.parse('$baseUrl/planning/history'),
+      headers: headers,
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      final err = jsonDecode(response.body);
+      throw Exception(err['message'] ?? 'Failed to clear history');
     }
   }
 }

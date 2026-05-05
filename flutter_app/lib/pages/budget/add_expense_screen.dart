@@ -23,8 +23,25 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   XFile? _receiptImage;
   String? _receiptPhotoUrl;
 
-  List<Map<String, dynamic>> get _categories =>
-      List<Map<String, dynamic>>.from(widget.budget['categories'] ?? []);
+  List<Map<String, dynamic>> get _categories {
+    final raw = List<Map<String, dynamic>>.from(widget.budget['categories'] ?? []);
+    final seen = <String>{};
+    final normalized = <Map<String, dynamic>>[];
+
+    for (final category in raw) {
+      final categoryId =
+          (category['_id'] ?? category['category_id'] ?? '').toString().trim();
+      if (categoryId.isEmpty || seen.contains(categoryId)) continue;
+      seen.add(categoryId);
+      normalized.add({
+        ...category,
+        '_id': categoryId,
+        'category_id': categoryId,
+      });
+    }
+
+    return normalized;
+  }
 
   @override
   void dispose() {
@@ -47,6 +64,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Future<void> _submit() async {
+    final categories = _categories;
     final amount = double.tryParse(_amountCtrl.text.trim());
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -75,7 +93,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         'title': _descCtrl.text.trim().isEmpty
             ? '${_expenseScope == 'personal' ? 'Personal' : 'Shared'} expense'
             : _descCtrl.text.trim(),
-        'category': _selectedCategoryId == null ? 'General' : (_categories.firstWhere((cat) => cat['_id'] == _selectedCategoryId, orElse: () => {})['name'] ?? 'General'),
+        'category': _selectedCategoryId == null
+          ? 'General'
+          : (categories
+              .firstWhere((cat) => cat['_id'] == _selectedCategoryId,
+                orElse: () => {})['name'] ??
+            'General'),
       });
       if (mounted) {
         Navigator.pop(context);
@@ -96,6 +119,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final categories = _categories;
+    final selectedCategoryValue = categories.any((cat) => cat['_id'] == _selectedCategoryId)
+        ? _selectedCategoryId
+        : null;
     final emergencyTotal = (widget.budget['emergency_fund_amount'] ?? 0).toDouble();
     final emergencySpent = (widget.budget['emergency_fund_spent'] ?? 0).toDouble();
     final emergencyRemaining = emergencyTotal - emergencySpent;
@@ -171,11 +198,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               child: DropdownButton<String>(
                 isExpanded: true,
                 hint: Text(_expenseScope == 'shared' ? 'Select category' : 'Optional category'),
-                value: _selectedCategoryId,
-                items: _categories.map((cat) {
+                value: selectedCategoryValue,
+                items: categories.map((cat) {
                   final color = _parseColor(cat['color'] ?? '#4CAF50');
                   return DropdownMenuItem<String>(
-                    value: cat['_id'],
+                    value: (cat['_id'] ?? cat['category_id']).toString(),
                     child: Row(children: [
                       Container(width: 14, height: 14,
                           decoration: BoxDecoration(color: color, shape: BoxShape.circle)),

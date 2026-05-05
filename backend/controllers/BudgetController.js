@@ -435,6 +435,123 @@ exports.getPeriodBudgets = catchAsync(async (req, res, next) => {
 	});
 });
 
+exports.getInventoryBudgetSummary = catchAsync(async (req, res, next) => {
+	const { active_on, period_budget_id, include_periods } = req.query;
+	const activeDate = active_on ? new Date(active_on) : new Date();
+
+	if (Number.isNaN(activeDate.getTime())) {
+		return next(new AppError('active_on must be a valid date', 400));
+	}
+
+	let periodBudget = null;
+
+	if (period_budget_id) {
+		if (!mongoose.Types.ObjectId.isValid(period_budget_id)) {
+			return next(new AppError('period_budget_id must be a valid ID', 400));
+		}
+
+		periodBudget = await PeriodBudget.findOne({
+			_id: period_budget_id,
+			family_id: req.familyAccount._id,
+		});
+
+		if (!periodBudget) {
+			return next(new AppError('Selected period budget not found', 404));
+		}
+	} else {
+		periodBudget = await PeriodBudget.findOne({
+			family_id: req.familyAccount._id,
+			is_active: true,
+			start_date: { $lte: activeDate },
+			end_date: { $gte: activeDate },
+		}).sort({ start_date: -1, createdAt: -1 });
+	}
+
+	let availablePeriodBudgets = [];
+	if (include_periods === 'true') {
+		availablePeriodBudgets = await PeriodBudget.find({
+			family_id: req.familyAccount._id,
+			is_active: true,
+		})
+			.sort({ start_date: -1, createdAt: -1 })
+			.limit(12)
+			.select('_id title period_type start_date end_date total_amount spent_amount currency');
+	}
+
+	if (!periodBudget) {
+		return res.status(200).json({
+			status: 'success',
+			data: {
+				selected_period_budget_id: null,
+				available_period_budgets: availablePeriodBudgets,
+				period_budget: null,
+				categories: [],
+				totals: { allocated: 0, spent: 0, remaining: 0 },
+			},
+		});
+	}
+
+	const allocations = await BudgetAllocation.find({
+		family_id: req.familyAccount._id,
+		period_budget_id: periodBudget._id,
+		is_active: true,
+	}).populate('inventory_category_id', 'title');
+
+	const categories = allocations
+		.map((allocation) => {
+			const allocatedAmount = Number(allocation.allocated_amount || 0);
+			const spentAmount = Number(allocation.spent_amount || 0);
+			const remainingAmount = computeRemaining(allocatedAmount, spentAmount);
+
+			return {
+				allocation_id: allocation._id,
+				inventory_category_id: allocation.inventory_category_id?._id || null,
+				inventory_category_title: allocation.inventory_category_id?.title || 'Uncategorized',
+				allocated_amount: Number(allocatedAmount.toFixed(2)),
+				spent_amount: Number(spentAmount.toFixed(2)),
+				remaining_amount: remainingAmount,
+				threshold_percentage: Number((allocation.threshold_percentage || periodBudget.threshold_percentage || 0).toFixed(2)),
+				usage_percentage: computeUsagePercentage(spentAmount, allocatedAmount),
+			};
+		})
+		.sort((a, b) => a.inventory_category_title.localeCompare(b.inventory_category_title));
+
+	const totals = categories.reduce(
+		(acc, item) => {
+			acc.allocated += Number(item.allocated_amount || 0);
+			acc.spent += Number(item.spent_amount || 0);
+			acc.remaining += Number(item.remaining_amount || 0);
+			return acc;
+		},
+		{ allocated: 0, spent: 0, remaining: 0 }
+	);
+
+	res.status(200).json({
+		status: 'success',
+		data: {
+			selected_period_budget_id: periodBudget._id,
+			available_period_budgets: availablePeriodBudgets,
+			period_budget: {
+				period_budget_id: periodBudget._id,
+				title: periodBudget.title,
+				period_type: periodBudget.period_type,
+				start_date: periodBudget.start_date,
+				end_date: periodBudget.end_date,
+				currency: periodBudget.currency,
+				total_amount: Number(Number(periodBudget.total_amount || 0).toFixed(2)),
+				spent_amount: Number(Number(periodBudget.spent_amount || 0).toFixed(2)),
+				remaining_amount: computeRemaining(periodBudget.total_amount, periodBudget.spent_amount),
+			},
+			categories,
+			totals: {
+				allocated: Number(totals.allocated.toFixed(2)),
+				spent: Number(totals.spent.toFixed(2)),
+				remaining: Number(totals.remaining.toFixed(2)),
+			},
+		},
+	});
+});
+
 exports.setPeriodBudgetAllocations = catchAsync(async (req, res, next) => {
 	const { periodBudgetId } = req.params;
 	const { allocations } = req.body;
@@ -771,6 +888,7 @@ exports.setPeriodMemberAllowances = catchAsync(async (req, res, next) => {
 		normalizedAllowances.push({
 			member_id: memberId || null,
 			member_mail: memberMail,
+			previous_money_amount: 0,
 			money_amount: moneyAmount,
 			allowance_currency: allowanceCurrency,
 			period_type: periodType,
@@ -781,6 +899,16 @@ exports.setPeriodMemberAllowances = catchAsync(async (req, res, next) => {
 	}
 
 	for (const allowance of normalizedAllowances) {
+		const existingAllowance = await MemberAllowance.findOne({
+			family_id: req.familyAccount._id,
+			period_budget_id: periodBudget._id,
+			member_mail: allowance.member_mail,
+		});
+		const previousAmount = Number(existingAllowance?.money_amount || 0);
+		const amountDelta = Number((allowance.money_amount - previousAmount).toFixed(2));
+		const memberWallet = await ensureMoneyWallet(allowance.member_mail, req.familyAccount._id);
+		const previousWalletBalance = Number(memberWallet.balance || 0);
+
 		await MemberAllowance.findOneAndUpdate(
 			{
 				family_id: req.familyAccount._id,
@@ -801,23 +929,30 @@ exports.setPeriodMemberAllowances = catchAsync(async (req, res, next) => {
 			{ upsert: true, new: true, setDefaultsOnInsert: true }
 		);
 
-		await logBalanceWalletDetail({
-			family_id: req.familyAccount._id,
-			member_id: allowance.member_id,
-			member_mail: allowance.member_mail,
-			wallet_scope: 'personal_budget',
-			change_type: 'credit',
-			source_type: 'allowance',
-			amount: allowance.money_amount,
-			previous_balance: 0,
-			new_balance: allowance.money_amount,
-			title: 'Personal allowance assigned',
-			description: `Allowance set for ${allowance.member_mail}`,
-			added_by_member_id: req.member._id,
-			added_by_mail: req.member.mail,
-			budget_id: periodBudget._id,
-			notes: `period_type=${allowance.period_type}`,
-		});
+		if (amountDelta !== 0) {
+			memberWallet.balance = Number(Math.max(0, previousWalletBalance + amountDelta).toFixed(2));
+			memberWallet.last_update = new Date();
+			await memberWallet.save();
+
+			await logBalanceWalletDetail({
+				family_id: req.familyAccount._id,
+				member_id: allowance.member_id,
+				member_mail: allowance.member_mail,
+				member_wallet_id: memberWallet._id,
+				wallet_scope: 'money_wallet',
+				change_type: amountDelta >= 0 ? 'credit' : 'debit',
+				source_type: 'allowance',
+				amount: Math.abs(amountDelta),
+				previous_balance: previousWalletBalance,
+				new_balance: memberWallet.balance,
+				title: 'Personal allowance updated',
+				description: `${allowance.member_mail} allowance changed by ${amountDelta.toFixed(2)}`,
+				added_by_member_id: req.member._id,
+				added_by_mail: req.member.mail,
+				budget_id: periodBudget._id,
+				notes: `period_type=${allowance.period_type};previous_allowance=${previousAmount.toFixed(2)}`,
+			});
+		}
 	}
 
 	const savedAllowances = await MemberAllowance.find({
@@ -1272,6 +1407,9 @@ exports.createEventWithRewards = catchAsync(async (req, res, next) => {
 		members_contributing,
 	} = req.body;
 
+	console.log('📝 createEventWithRewards called for family:', req.familyAccount._id);
+	console.log('   Payload:', { title, event_date, estimated_cost });
+
 	if (!title || !event_date) {
 		return next(new AppError('Please provide title and event_date', 400));
 	}
@@ -1316,6 +1454,8 @@ exports.createEventWithRewards = catchAsync(async (req, res, next) => {
 		total_contributed_points: normalizedContributors.reduce((sum, c) => sum + Number(c.points_paid || 0), 0),
 		created_by: req.member.mail,
 	});
+
+	console.log('✓ Future event created with ID:', futureEvent._id, 'for family:', futureEvent.family_id);
 
 	const autoCreatedRewardItems = [];
 	if (normalizedRequiredPoints > 0) {
@@ -1718,8 +1858,47 @@ exports.getEventFundingStatus = catchAsync(async (req, res, next) => {
 
 exports.getCombinedAnalytics = catchAsync(async (req, res, next) => {
 	const familyId = req.familyAccount._id;
+	const { period_budget_id } = req.query;
 	const now = new Date();
 	const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+	const expenseFilter = { family_id: familyId };
+	let scopedPeriodBudget = null;
+
+	if (period_budget_id) {
+		if (!mongoose.Types.ObjectId.isValid(period_budget_id)) {
+			return next(new AppError('period_budget_id must be a valid ID', 400));
+		}
+
+		scopedPeriodBudget = await PeriodBudget.findOne({
+			_id: period_budget_id,
+			family_id: familyId,
+		});
+
+		if (!scopedPeriodBudget) {
+			return next(new AppError('Selected period budget not found', 404));
+		}
+
+		expenseFilter.expense_date = {
+			$gte: new Date(scopedPeriodBudget.start_date),
+			$lte: new Date(scopedPeriodBudget.end_date),
+		};
+
+		const scopedAllocations = await BudgetAllocation.find({
+			family_id: familyId,
+			period_budget_id: scopedPeriodBudget._id,
+			is_active: true,
+		}).populate('inventory_category_id', 'title');
+
+		const scopedCategoryNames = scopedAllocations
+			.map((allocation) => allocation.inventory_category_id?.title)
+			.filter(Boolean);
+
+		expenseFilter.$or = [
+			{ notes: { $regex: `period_budget_id=${scopedPeriodBudget._id}` } },
+			{ category: { $in: scopedCategoryNames } },
+		];
+	}
 
 	const [
 		members,
@@ -1731,7 +1910,7 @@ exports.getCombinedAnalytics = catchAsync(async (req, res, next) => {
 		memberWallets,
 	] = await Promise.all([
 		Member.find({ family_id: familyId }).populate('member_type_id', 'type').select('_id username mail member_type_id'),
-		Expense.find({ family_id: familyId }).select('category amount expense_source expense_date createdAt member_mail linked_member_allowance_id'),
+		Expense.find(expenseFilter).select('title description category amount expense_source expense_date createdAt member_mail notes linked_member_allowance_id budget_id budget_category_id'),
 		PointHistory.find({ family_id: familyId }).select('member_mail points_amount reason_type createdAt'),
 		WalletTransaction.find({ family_id: familyId }).select('member_mail amount transaction_type description transaction_date createdAt'),
 		MemberAllowance.find({ family_id: familyId }).select('member_mail allowance_currency money_amount spent_amount start_date end_date createdAt'),
@@ -1953,9 +2132,31 @@ exports.getCombinedAnalytics = catchAsync(async (req, res, next) => {
 		),
 	};
 
+	const expenseDetails = expenses
+		.map((expense) => ({
+			expense_id: expense._id,
+			title: expense.title || expense.category || 'Expense',
+			description: expense.description || '',
+			category: expense.category || 'Uncategorized',
+			amount: Number(Number(expense.amount || 0).toFixed(2)),
+			expense_source: expense.expense_source || 'budget',
+			member_mail: expense.member_mail || '',
+			expense_date: expense.expense_date || expense.createdAt,
+			notes: expense.notes || '',
+		}))
+		.sort((a, b) => new Date(b.expense_date) - new Date(a.expense_date));
+
 	res.status(200).json({
 		status: 'success',
 		data: {
+			scope: scopedPeriodBudget
+				? {
+					period_budget_id: scopedPeriodBudget._id,
+					title: scopedPeriodBudget.title,
+					start_date: scopedPeriodBudget.start_date,
+					end_date: scopedPeriodBudget.end_date,
+				}
+				: null,
 			overview: {
 				total_family_spending: Number(totalFamilySpending.toFixed(2)),
 				total_points_earned: Number(totalPointsEarned.toFixed(2)),
@@ -1978,6 +2179,92 @@ exports.getCombinedAnalytics = catchAsync(async (req, res, next) => {
 				personal_spending_this_month: Number(personalSpendingTotal.toFixed(2)),
 				tracked_expenses: personalExpenses.length,
 			},
+			expense_details: expenseDetails,
 		},
+	});
+});
+
+// ── Get all future events for a family ─────────────────────────────────────
+exports.getFutureEvents = catchAsync(async (req, res, next) => {
+	const familyId = req.familyAccount._id;
+	console.log('🔍 getFutureEvents called with familyId:', familyId);
+
+	const events = await FutureEvent.find({ family_id: familyId })
+		.populate('created_by', 'username')
+		.populate('members_contributing.member_id', 'username email')
+		.sort({ event_date: 1 })
+		.lean();
+
+	console.log(`✓ Found ${events.length} future events for family ${familyId}`);
+
+	res.status(200).json({
+		status: 'success',
+		data: {
+			events: events || [],
+		},
+	});
+});
+
+// ── Update a future event ──────────────────────────────────────────────────
+exports.updateFutureEvent = catchAsync(async (req, res, next) => {
+	const { eventId } = req.params;
+	const familyId = req.familyAccount._id;
+	const { title, description, event_date, estimated_cost, funding_source, required_points } = req.body;
+
+	if (!mongoose.Types.ObjectId.isValid(eventId)) {
+		return next(new AppError('Invalid event ID', 400));
+	}
+
+	const event = await FutureEvent.findOne({ _id: eventId, family_id: familyId });
+	if (!event) {
+		return next(new AppError('Event not found', 404));
+	}
+
+	// Update allowed fields
+	if (title !== undefined) event.title = title.trim();
+	if (description !== undefined) event.description = description.trim();
+	if (event_date !== undefined) event.event_date = new Date(event_date);
+	if (estimated_cost !== undefined) event.estimated_cost = Number(estimated_cost);
+	if (funding_source !== undefined) {
+		if (!['budget', 'member_contributions', 'points_redeem'].includes(funding_source)) {
+			return next(new AppError("funding_source must be 'budget', 'member_contributions', or 'points_redeem'", 400));
+		}
+		event.funding_source = funding_source;
+	}
+	if (required_points !== undefined) event.required_points = Number(required_points);
+
+	await event.save();
+
+	res.status(200).json({
+		status: 'success',
+		message: 'Future event updated successfully',
+		data: { event },
+	});
+});
+
+// ── Delete a future event ──────────────────────────────────────────────────
+exports.deleteFutureEvent = catchAsync(async (req, res, next) => {
+	const { eventId } = req.params;
+	const familyId = req.familyAccount._id;
+
+	if (!mongoose.Types.ObjectId.isValid(eventId)) {
+		return next(new AppError('Invalid event ID', 400));
+	}
+
+	const event = await FutureEvent.findOne({ _id: eventId, family_id: familyId });
+	if (!event) {
+		return next(new AppError('Event not found', 404));
+	}
+
+	// Delete auto-created reward items
+	if (event.auto_created_reward_items && event.auto_created_reward_items.length > 0) {
+		await WishlistItem.deleteMany({ _id: { $in: event.auto_created_reward_items } });
+	}
+
+	await FutureEvent.deleteOne({ _id: eventId });
+
+	res.status(204).json({
+		status: 'success',
+		data: null,
 	});
 });

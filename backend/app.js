@@ -18,6 +18,7 @@ const wishlistRouter = require('./routes/wishlistRoutes');
 const wishlistCategoryRouter = require('./routes/wishlistCategoryRoutes');
 const redeemRouter = require('./routes/redeemRoutes');
 const budgetRouter = require('./routes/BudgetRoutes');
+const planningRouter = require('./routes/planningRoutes');
 
 // Food & Tracking module routes
 const unitRouter = require('./routes/unitRoutes');
@@ -65,6 +66,7 @@ app.use('/api/wishlist-categories', wishlistCategoryRouter);
 app.use('/api/redeem', redeemRouter);
 app.use('/api/budget', budgetRouter);
 app.use('/api/budgets', budgetRouter);
+app.use('/api/planning', planningRouter);
 
 // Food & Tracking module routes
 app.use('/api/units', unitRouter);

@@ -1555,6 +1555,35 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 15),
+              // Planning AI Button
+              InkWell(
+                onTap: () => Navigator.pushNamed(context, '/planning-chat'),
+                child: Container(
+                  padding: const EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6A1B9A), Color(0xFF8E24AA)],
+                    ),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.smart_toy_outlined, color: Colors.white, size: 24),
+                      const SizedBox(width: 10),
+                      Text(
+                        _t('Planning AI', 'المساعد الذكي'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),

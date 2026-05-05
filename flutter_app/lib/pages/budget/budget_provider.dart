@@ -65,8 +65,13 @@ class FamilyBudgetProvider extends ChangeNotifier {
       'emergency_fund_spent': budget['emergency_fund_spent'] ?? 0,
       'categories': allocations.map((allocation) {
         final category = allocation['inventory_category_id'];
+        final categoryId = category is Map
+            ? (category['_id']?.toString() ?? '')
+            : (category?.toString() ?? '');
         final title = category is Map ? (category['title'] ?? 'Uncategorized') : 'Uncategorized';
         return {
+          '_id': categoryId,
+          'category_id': categoryId,
           'name': title,
           'allocated_amount': allocation['allocated_amount'] ?? 0,
           'spent_amount': allocation['spent_amount'] ?? 0,
@@ -236,10 +241,13 @@ class FamilyBudgetProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       String url = '$_baseUrl/budget/analytics';
+      if (budgetId != null && budgetId.isNotEmpty) {
+        url += '?period_budget_id=$budgetId';
+      }
       final res = await http.get(Uri.parse(url), headers: await _headers());
       final data = jsonDecode(res.body);
       if (res.statusCode == 200) {
-        expenses = List<Map<String, dynamic>>.from(data['data']['expenses'] ?? []);
+        expenses = List<Map<String, dynamic>>.from(data['data']['expense_details'] ?? []);
       }
     } finally {
       _setLoading(false);
@@ -313,12 +321,13 @@ class FamilyBudgetProvider extends ChangeNotifier {
   Future<void> loadAnalytics(String budgetId) async {
     try {
       final res = await http.get(
-        Uri.parse('$_baseUrl/budget/analytics'),
+        Uri.parse('$_baseUrl/budget/analytics?period_budget_id=$budgetId'),
         headers: await _headers(),
       );
       final data = jsonDecode(res.body);
       if (res.statusCode == 200) {
         analyticsData = data['data'];
+        expenses = List<Map<String, dynamic>>.from(data['data']['expense_details'] ?? []);
         notifyListeners();
       }
     } catch (_) {}
@@ -336,24 +345,51 @@ class FamilyBudgetProvider extends ChangeNotifier {
 
   // ── Future Events ──────────────────────────────────────────────────────────
   Future<void> loadFutureEvents() async {
+    isLoading = true;
+    notifyListeners();
     try {
       final res = await http.get(
         Uri.parse('$_baseUrl/budgets/future-events/all'),
         headers: await _headers(),
       );
       final data = jsonDecode(res.body);
+      print('✓ loadFutureEvents response: Status=${res.statusCode}');
       if (res.statusCode == 200) {
-        futureEvents = List<Map<String, dynamic>>.from(data['data']['events'] ?? []);
+        final rawEvents = List<Map<String, dynamic>>.from(data['data']['events'] ?? []);
+        futureEvents = rawEvents.map((e) => {
+          ...e,
+          'name': (e['title'] ?? e['name'] ?? '').toString(),
+          'expected_date': (e['event_date'] ?? e['expected_date'] ?? '').toString(),
+          'estimated_cost': e['estimated_cost'] ?? 0,
+          'saved_amount': e['total_contributed_money'] ?? e['saved_amount'] ?? 0,
+        }).toList();
+        print('✓ loadFutureEvents mapped ${futureEvents.length} events!');
         notifyListeners();
+      } else {
+        print('✗ loadFutureEvents failed: ${res.statusCode} - ${data['message']}');
       }
-    } catch (_) {}
+    } catch (e) {
+      print('✗ loadFutureEvents error: $e');
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> createFutureEvent(Map<String, dynamic> payload) async {
+    final normalizedPayload = {
+      'title': (payload['title'] ?? payload['name'] ?? '').toString().trim(),
+      'description': (payload['description'] ?? '').toString(),
+      'event_date': (payload['event_date'] ?? payload['expected_date'] ?? DateTime.now().toIso8601String()).toString(),
+      'estimated_cost': (payload['estimated_cost'] ?? payload['cost'] ?? 0),
+      'funding_source': (payload['funding_source'] ?? 'budget').toString(),
+      'required_points': (payload['required_points'] ?? 0),
+    };
+
     final res = await http.post(
-      Uri.parse('$_baseUrl/budgets/future-events/new'),
+      Uri.parse('$_baseUrl/budgets/future-events'),
       headers: await _headers(),
-      body: jsonEncode(payload),
+      body: jsonEncode(normalizedPayload),
     );
     final data = jsonDecode(res.body);
     if (res.statusCode == 201) {

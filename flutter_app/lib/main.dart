@@ -33,6 +33,7 @@ import 'package:provider/provider.dart';
 import 'package:app_frontend/pages/budget/budget_provider.dart';
 import 'package:app_frontend/pages/budget/budget_dashboard_screen.dart';
 import 'package:app_frontend/pages/budget/event_funding_screen.dart';
+import 'pages/planning_chat_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -104,6 +105,7 @@ class MyApp extends StatelessWidget {
               '/combined-wallet': (context) => const CombinedWalletScreen(),
               '/wallet-details': (context) => const BalanceWalletDetailsScreen(),
               '/combined-analytics': (context) => const CombinedAnalyticsScreen(),
+              '/planning-chat': (context) => const PlanningChatScreen(),
             },
           );
         },
